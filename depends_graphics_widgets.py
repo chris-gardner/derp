@@ -21,16 +21,16 @@ connections between the nodes, to the nubs the connections connect to.
 
 ###############################################################################
 ###############################################################################
-class DrawNodeNub(QtGui.QGraphicsItem):
+class DrawNodeInputNub(QtGui.QGraphicsItem):
     """
     A QGraphicsItem representing the small clickable nub at the end of a DAG
     node.  New connections can be created by clicking and dragging from this.
     """
-    
+
     Type = QtGui.QGraphicsItem.UserType + 3
 
 
-    def __init__(self):
+    def __init__(self, index=0, name=''):
         """
         """
         QtGui.QGraphicsItem.__init__(self)
@@ -38,31 +38,96 @@ class DrawNodeNub(QtGui.QGraphicsItem):
         self.setAcceptedMouseButtons(QtCore.Qt.LeftButton)
         self.setCacheMode(self.DeviceCoordinateCache)
         self.setZValue(-1)
-        
-        self.radius = 20
+        self.index = index
+
+        self.radius = 10.0
+        self.verticalOffset = (self.index * self.radius) + (self.index * 5) - 20
+        self.name = name
+
+        self.setToolTip(self.name)
 
 
     def type(self):
         """
         Assistance for the QT windowing toolkit.
         """
-        return DrawNodeNub.Type
+        return DrawNodeInputNub.Type
 
 
     def boundingRect(self):
         """
         Defines the clickable hit box.
         """
-        return QtCore.QRectF(-5, self.parentItem().height/2.0-5, 10, 10)
-    
+        return QtCore.QRectF(-self.parentItem().width / 2 - (self.radius / 2), self.verticalOffset, 10, 10)
+
 
     def paint(self, painter, option, widget):
         """
         Draw the nub.
         """
         painter.setBrush(QtGui.QBrush(QtCore.Qt.yellow))
-        painter.setPen(QtGui.QPen(QtCore.Qt.yellow, 0))
-        painter.drawPie(QtCore.QRectF(-5, self.parentItem().height/2.0-5, 10, 10), 16*180, 16*180)
+        painter.setPen(QtGui.QPen(QtCore.Qt.black, 1))
+        painter.drawEllipse(self.boundingRect())
+
+
+class DrawNodeOutputNub(QtGui.QGraphicsItem):
+    """
+    A QGraphicsItem representing the small clickable nub at the end of a DAG
+    node.  New connections can be created by clicking and dragging from this.
+    """
+
+    Type = QtGui.QGraphicsItem.UserType + 3
+
+
+    def __init__(self, index=0, name=''):
+        """
+        """
+        QtGui.QGraphicsItem.__init__(self)
+
+        self.setAcceptedMouseButtons(QtCore.Qt.LeftButton)
+        self.setCacheMode(self.DeviceCoordinateCache)
+        self.setZValue(-1)
+        self.index = index
+        self.radius = 10.0
+        self.name = name
+
+        self.verticalOffset = (self.index * self.radius) + (self.index * 10) - 20
+        self.setToolTip(self.name)
+
+
+    def type(self):
+        """
+        Assistance for the QT windowing toolkit.
+        """
+        return DrawNodeInputNub.Type
+
+
+    def boundingRect(self):
+        """
+        Defines the clickable hit box.
+        """
+        return QtCore.QRectF((self.parentItem().width / 2) - (self.radius / 2), self.verticalOffset, 60, self.radius)
+
+
+    def paint(self, painter, option, widget):
+        """
+        Draw the nub.
+        """
+
+        painter.setBrush(QtGui.QBrush(QtCore.Qt.lightGray))
+        painter.setPen(QtGui.QPen(QtCore.Qt.black, 1))
+        circleRect= QtCore.QRectF(self.boundingRect().left(), self.boundingRect().top(),
+                                  self.radius, self.radius)
+
+        painter.drawEllipse(circleRect)
+
+        # textRect = QtCore.QRectF(self.boundingRect().left(), self.boundingRect().top(),
+        #                          40, self.radius + 10)
+        # font = painter.font()
+        # font.setPointSize(10)
+        # painter.setFont(font)
+        # painter.setPen(QtCore.Qt.black)
+        # painter.drawText(textRect, QtCore.Qt.AlignRight, 'asdf')
 
 
     def mousePressEvent(self, event):
@@ -72,7 +137,7 @@ class DrawNodeNub(QtGui.QGraphicsItem):
         tempEdge = DrawEdge(self.parentItem(), None, floatingDestinationPoint=event.scenePos())
         self.scene().addItem(tempEdge)
         self.ungrabMouse()
-        tempEdge.dragging = True        # TODO: Probably better done with an DrawEdge function (still valid?)
+        tempEdge.dragging = True  # TODO: Probably better done with an DrawEdge function (still valid?)
         tempEdge.grabMouse()
         event.accept()
         return
@@ -85,7 +150,7 @@ class DrawNode(QtGui.QGraphicsItem):
     A QGraphicsItem representing a node in a dependency graph.  These can be
     selected, moved, and connected together with DrawEdges.
     """
-    
+
     Type = QtGui.QGraphicsItem.UserType + 1
 
 
@@ -101,8 +166,21 @@ class DrawNode(QtGui.QGraphicsItem):
         self.incomingDrawEdgeList = list()
         self.outgoingDrawEdgeList = list()
 
-        self.nub = DrawNodeNub()
-        self.nub.setParentItem(self)
+        self.outNubs = []
+        for count, output in enumerate(dagNode.outputs()):
+            nub = DrawNodeOutputNub(index=count, name=output.name)
+            nub.setParentItem(self)
+            self.outNubs.append(nub)
+        print self.outNubs
+
+        self.inNubs = []
+
+        for count, input in enumerate(dagNode.inputs()):
+            nub = DrawNodeInputNub(index=count, name=input.name)
+            nub.setParentItem(self)
+            self.inNubs.append(nub)
+        print self.inNubs
+
 
         self.setFlag(QtGui.QGraphicsItem.ItemIsMovable)
         self.setFlag(QtGui.QGraphicsItem.ItemIsSelectable)
@@ -110,9 +188,18 @@ class DrawNode(QtGui.QGraphicsItem):
         self.setAcceptedMouseButtons(QtCore.Qt.LeftButton)
         self.setCacheMode(self.DeviceCoordinateCache)
         self.setZValue(-1)
-        
+
         self.width = 150
-        self.height = 30
+
+        # calc height
+        inputCount = len(dagNode.inputs())
+        outputCount = len(dagNode.outputs())
+        if outputCount > inputCount:
+            extraHeight = outputCount * 20
+        else:
+            extraHeight = inputCount * 20
+
+        self.height = 30 + extraHeight
 
         # For handling movement undo/redos of groups of objects
         # This is a little strange to be handled by the node itself 
@@ -141,7 +228,7 @@ class DrawNode(QtGui.QGraphicsItem):
             self.outgoingDrawEdgeList.remove(edge)
         else:
             raise RuntimeError("Attempting to remove drawEdge that doesn't exist from node %s." % self.dagNode.name)
-            
+
 
     def addDrawEdge(self, edge):
         """
@@ -181,16 +268,16 @@ class DrawNode(QtGui.QGraphicsItem):
         a rounded rectangle for speed purposes.
         """
         # TODO: Is this the right place to put this?  Maybe setWidth (adjust) would be fine.
-        #if len(self.dagNode.name)*10 != self.width:
+        # if len(self.dagNode.name)*10 != self.width:
         #   self.prepareGeometryChange()
         #   self.width = len(self.dagNode.name)*10
         #   if self.width < 9: 
         #       self.width = 9
         adjust = 2.0
-        return QtCore.QRectF(-self.width/2  - adjust, 
-                             -self.height/2 - adjust,
-                              self.width  + 3 + adjust, 
-                              self.height + 3 + adjust)
+        return QtCore.QRectF(-self.width / 2 - adjust,
+                             -self.height / 2 - adjust,
+                             self.width + 3 + adjust,
+                             self.height + 3 + adjust)
 
     def shape(self):
         """
@@ -198,7 +285,7 @@ class DrawNode(QtGui.QGraphicsItem):
         """
         # TODO: Find out what this is for again?
         path = QtGui.QPainterPath()
-        path.addRoundedRect(QtCore.QRectF(-self.width/2, -self.height/2, self.width, self.height), 5, 5)
+        path.addRoundedRect(QtCore.QRectF(-self.width / 2, -self.height / 2, self.width, self.height), 5, 5)
         return path
 
 
@@ -209,10 +296,10 @@ class DrawNode(QtGui.QGraphicsItem):
         little light denoting if it already has data present and/or if it is
         in a "stale" state.
         """
-        inputsFulfilled = self.scene().dag.nodeAllInputsDataPresent(self.dagNode)
-        
+        inputsFulfilled = None
+
         # Draw the box
-        gradient = QtGui.QLinearGradient(0, -self.height/2, 0, self.height/2)
+        gradient = QtGui.QLinearGradient(0, -self.height / 2, 0, self.height / 2)
         if option.state & QtGui.QStyle.State_Selected:
             gradient.setColorAt(0, QtGui.QColor(255, 255 if inputsFulfilled else 172, 0))
             gradient.setColorAt(1, QtGui.QColor(200, 128 if inputsFulfilled else 0, 0))
@@ -233,8 +320,8 @@ class DrawNode(QtGui.QGraphicsItem):
         else:
             painter.setPen(QtGui.QPen(QtCore.Qt.black, 0))
         painter.setBrush(QtGui.QBrush(gradient))
-        fullRect = QtCore.QRectF(-self.width/2, -self.height/2, self.width, self.height)
-        painter.drawRoundedRect(fullRect, 5, 5)
+        fullRect = QtCore.QRectF(-self.width / 2, -self.height / 2, self.width, self.height)
+        painter.drawRoundedRect(fullRect, 2, 2)
 
         # No lights or text for dot nodes
         if type(self.dagNode) == depends_node.DagNodeDot:
@@ -242,26 +329,37 @@ class DrawNode(QtGui.QGraphicsItem):
 
         # The "data present" light
         painter.setPen(QtGui.QPen(QtGui.QColor(0, 0, 0), 0.25))
-        for output in self.dagNode.outputs():
-            if self.scene().dag.nodeOutputDataPacket(self.dagNode, output).dataPresent():
-                painter.setBrush(QtGui.QBrush(QtGui.QColor(0, 255, 0)))
-            else:
-                painter.setBrush(QtGui.QBrush(QtGui.QColor(255, 0, 0)))
-                break
+        painter.setBrush(QtGui.QBrush(QtGui.QColor(255, 0, 0)))
 
         # The stale light overrides all
         if self.scene().dag.nodeStaleState(self.dagNode):
             painter.setBrush(QtGui.QBrush(QtGui.QColor(0, 59, 174)))
-        painter.drawRect(QtCore.QRectF(-self.width/2+5, -self.height/2+5, 5, 5))
+        painter.drawRect(QtCore.QRectF(-self.width / 2 + 5, -self.height / 2 + 5, 5, 5))
 
         # Text (none for dot nodes)
-        textRect = QtCore.QRectF(self.boundingRect().left() + 4,  self.boundingRect().top(),
-                                 self.boundingRect().width() - 4, self.boundingRect().height())
+        textRect = QtCore.QRectF(self.boundingRect().left() + 4, self.boundingRect().top(),
+                                 self.boundingRect().width() - 4, 30)
         font = painter.font()
-        font.setPointSize(10)
+        font.setPointSize(14)
         painter.setFont(font)
         painter.setPen(QtCore.Qt.black)
         painter.drawText(textRect, QtCore.Qt.AlignCenter, self.dagNode.name)
+
+
+        # draw inputs
+        for count, input in enumerate(self.dagNode.inputs()):
+            verticalOffset = (count * 10) + (count * 10) - 20
+
+            textRect = QtCore.QRectF(self.boundingRect().left() + 10, verticalOffset, (self.boundingRect().width() / 2), 20)
+            painter.drawText(textRect, QtCore.Qt.AlignLeft, input.name)
+
+        # draw outputs
+        for count, output in enumerate(self.dagNode.outputs()):
+            verticalOffset = (count * 10) + (count * 10) - 20
+
+            textRect = QtCore.QRectF(0, verticalOffset, (self.boundingRect().width() / 2) - 10, 20)
+            painter.drawText(textRect, QtCore.Qt.AlignRight, output.name)
+
 
 
     def mousePressEvent(self, event):
@@ -269,13 +367,14 @@ class DrawNode(QtGui.QGraphicsItem):
         Help manage mouse movement undo/redos.
         """
         # Note: This works without an 'if' because the only mouse button that 
-        #       comes through here is the left
+        # comes through here is the left
         QtGui.QGraphicsItem.mousePressEvent(self, event)
-        
+
         # Let the QT parent class handle the selection process before querying what's selected
-        self.clickSnap = self.scene().dag.snapshot(nodeMetaDict=self.scene().nodeMetaDict(), connectionMetaDict=self.scene().connectionMetaDict())
+        self.clickSnap = self.scene().dag.snapshot(nodeMetaDict=self.scene().nodeMetaDict(),
+                                                   connectionMetaDict=self.scene().connectionMetaDict())
         self.clickPosition = self.pos()
-        
+
 
     def mouseReleaseEvent(self, event):
         """
@@ -283,8 +382,10 @@ class DrawNode(QtGui.QGraphicsItem):
         """
         # Don't register undos for selections without moves
         if self.pos() != self.clickPosition:
-            currentSnap = self.scene().dag.snapshot(nodeMetaDict=self.scene().nodeMetaDict(), connectionMetaDict=self.scene().connectionMetaDict())
-            self.scene().undoStack().push(depends_undo_commands.SceneOnlyUndoCommand(self.clickSnap, currentSnap, self.scene()))
+            currentSnap = self.scene().dag.snapshot(nodeMetaDict=self.scene().nodeMetaDict(),
+                                                    connectionMetaDict=self.scene().connectionMetaDict())
+            self.scene().undoStack().push(
+                depends_undo_commands.SceneOnlyUndoCommand(self.clickSnap, currentSnap, self.scene()))
         QtGui.QGraphicsItem.mouseReleaseEvent(self, event)
 
 
@@ -325,11 +426,16 @@ class DrawEdge(QtGui.QGraphicsItem):
 
         self.source = sourceDrawNode
         self.dest = destDrawNode
-        if not self.dest:
-            self.floatingDestinationPoint = floatingDestinationPoint
-        self.source.addDrawEdge(self)
         if self.dest:
             self.dest.addDrawEdge(self)
+        else:
+            self.floatingDestinationPoint = floatingDestinationPoint
+
+        if self.source:
+            self.source.addDrawEdge(self)
+        else:
+            self.floatingSourcePoint = floatingDestinationPoint
+
         self.adjust()
 
         # MouseMoved is a little hack to get around a bug where clicking the mouse and not dragging caused an error
@@ -391,9 +497,9 @@ class DrawEdge(QtGui.QGraphicsItem):
             return
 
         self.prepareGeometryChange()
-        self.sourcePoint = line.p1() + QtCore.QPointF(0, (self.sourceDrawNode().height/2) + 1)
+        self.sourcePoint = line.p1() + QtCore.QPointF(0, (self.sourceDrawNode().height / 2) + 1)
         if self.dest:
-            self.destPoint = line.p2() - QtCore.QPointF(0, self.destDrawNode().height/2)
+            self.destPoint = line.p2() - QtCore.QPointF(0, self.destDrawNode().height / 2)
             self.destPoint += QtCore.QPointF(self.horizontalConnectionOffset, 0.0)
         else:
             self.destPoint = line.p2()
@@ -409,7 +515,10 @@ class DrawEdge(QtGui.QGraphicsItem):
         extra = (penWidth + self.arrowSize) / 2.0
         return QtCore.QRectF(self.sourcePoint,
                              QtCore.QSizeF(self.destPoint.x() - self.sourcePoint.x(),
-                                           self.destPoint.y() - self.sourcePoint.y())).normalized().adjusted(-extra, -extra, extra, extra)
+                                           self.destPoint.y() - self.sourcePoint.y())).normalized().adjusted(-extra,
+                                                                                                             -extra,
+                                                                                                             extra,
+                                                                                                             extra)
 
 
     def shape(self):
@@ -423,9 +532,9 @@ class DrawEdge(QtGui.QGraphicsItem):
         stroker.setWidth(4)
         stroked = stroker.createStroke(path)
         # Add a square at the tip
-        stroked.addRect(self.destPoint.x()-10, self.destPoint.y()-10, 20, 20)
+        stroked.addRect(self.destPoint.x() - 10, self.destPoint.y() - 10, 20, 20)
         return stroked
-        
+
 
     def paint(self, painter, option, widget):
         """
@@ -459,7 +568,7 @@ class DrawEdge(QtGui.QGraphicsItem):
         """
         event.accept()
         self.dragging = True
-        #QtGui.QGraphicsItem.mousePressEvent(self, event)
+        # QtGui.QGraphicsItem.mousePressEvent(self, event)
 
 
     def mouseMoveEvent(self, event):
@@ -471,14 +580,17 @@ class DrawEdge(QtGui.QGraphicsItem):
             self.floatingDestinationPoint = event.scenePos()
             if self.destDrawNode():
                 # Disconnect an edge from a node
-                preSnap = self.scene().dag.snapshot(nodeMetaDict=self.scene().nodeMetaDict(), connectionMetaDict=self.scene().connectionMetaDict())
-                
+                preSnap = self.scene().dag.snapshot(nodeMetaDict=self.scene().nodeMetaDict(),
+                                                    connectionMetaDict=self.scene().connectionMetaDict())
+
                 self.destDrawNode().removeDrawEdge(self)
                 self.scene().nodesDisconnected.emit(self.sourceDrawNode().dagNode, self.destDrawNode().dagNode)
                 self.setDestDrawNode(None)
 
-                currentSnap = self.scene().dag.snapshot(nodeMetaDict=self.scene().nodeMetaDict(), connectionMetaDict=self.scene().connectionMetaDict())
-                self.scene().undoStack().push(depends_undo_commands.DagAndSceneUndoCommand(preSnap, currentSnap, self.scene().dag, self.scene()))
+                currentSnap = self.scene().dag.snapshot(nodeMetaDict=self.scene().nodeMetaDict(),
+                                                        connectionMetaDict=self.scene().connectionMetaDict())
+                self.scene().undoStack().push(
+                    depends_undo_commands.DagAndSceneUndoCommand(preSnap, currentSnap, self.scene().dag, self.scene()))
             self.adjust()
             # TODO: Hoover-color nodes as potential targets
         QtGui.QGraphicsItem.mouseMoveEvent(self, event)
@@ -492,33 +604,38 @@ class DrawEdge(QtGui.QGraphicsItem):
         """
         if self.dragging and self.mouseMoved:
             self.dragging = False
-            
+
             # A little weird - seems to be necessary when passing mouse control from the nub to here
             self.ungrabMouse()
-            
+
             # Hits?
             nodes = [n for n in self.scene().items(self.floatingDestinationPoint) if type(n) == DrawNode]
             if nodes:
                 topHitNode = nodes[0]
-                duplicatingConnection = self.sourceDrawNode().dagNode in self.scene().dag.nodeConnectionsIn(topHitNode.dagNode)
+                duplicatingConnection = self.sourceDrawNode().dagNode in self.scene().dag.nodeConnectionsIn(
+                    topHitNode.dagNode)
                 if topHitNode is not self.sourceDrawNode() and not duplicatingConnection:
                     # Connect an edge to a node
-                    preSnap = self.scene().dag.snapshot(nodeMetaDict=self.scene().nodeMetaDict(), connectionMetaDict=self.scene().connectionMetaDict())
-                    
+                    preSnap = self.scene().dag.snapshot(nodeMetaDict=self.scene().nodeMetaDict(),
+                                                        connectionMetaDict=self.scene().connectionMetaDict())
+
                     self.setDestDrawNode(topHitNode)
                     self.dest.addDrawEdge(self)
                     self.horizontalConnectionOffset = (event.pos() - self.mapFromItem(self.dest, 0, 0)).x()
                     self.scene().nodesConnected.emit(self.sourceDrawNode().dagNode, self.destDrawNode().dagNode)
                     self.adjust()
 
-                    currentSnap = self.scene().dag.snapshot(nodeMetaDict=self.scene().nodeMetaDict(), connectionMetaDict=self.scene().connectionMetaDict())
-                    self.scene().undoStack().push(depends_undo_commands.DagAndSceneUndoCommand(preSnap, currentSnap, self.scene().dag, self.scene()))
+                    currentSnap = self.scene().dag.snapshot(nodeMetaDict=self.scene().nodeMetaDict(),
+                                                            connectionMetaDict=self.scene().connectionMetaDict())
+                    self.scene().undoStack().push(
+                        depends_undo_commands.DagAndSceneUndoCommand(preSnap, currentSnap, self.scene().dag,
+                                                                     self.scene()))
                     return QtGui.QGraphicsItem.mouseReleaseEvent(self, event)
 
             # No hits?  Delete yourself (You have no chance to win!)
             self.sourceDrawNode().removeDrawEdge(self)
             self.scene().removeItem(self)
-        
+
         self.mouseMoved = False
         QtGui.QGraphicsItem.mouseReleaseEvent(self, event)
 
@@ -530,10 +647,10 @@ class DrawGroupBox(QtGui.QGraphicsItem):
     A simple box that draws around groups of DrawNodes.  Denotes which nodes
     are grouped together.
     """
-    
+
     Type = QtGui.QGraphicsItem.UserType + 4
-    
-    
+
+
     def __init__(self, initialBounds=QtCore.QRectF(), name=""):
         """
         """
@@ -565,7 +682,7 @@ class DrawGroupBox(QtGui.QGraphicsItem):
         painter.setBrush(QtGui.QColor(62, 62, 62))
         painter.setPen(QtCore.Qt.NoPen)
         painter.drawRect(self.bounds)
-        
+
 
 ###############################################################################
 ###############################################################################
@@ -573,7 +690,7 @@ class SceneWidget(QtGui.QGraphicsScene):
     """
     The QGraphicsScene that contains the contents of a given dependency graph.
     """
-    
+
     # Signals
     nodesDisconnected = QtCore.Signal(depends_node.DagNode, depends_node.DagNode)
     nodesConnected = QtCore.Signal(depends_node.DagNode, depends_node.DagNode)
@@ -585,7 +702,7 @@ class SceneWidget(QtGui.QGraphicsScene):
 
         # Call setDag() when setting the dag to make sure everything is cleaned up properly
         self.dag = None
-        
+
         # The lists of highlight nodes and their matching intensities.
         self.highlightNodes = list()
         self.highlightIntensities = list()
@@ -608,7 +725,7 @@ class SceneWidget(QtGui.QGraphicsScene):
             if type(item).__name__ == 'DrawNode':
                 nodes.append(item)
         return nodes
-    
+
 
     def drawNode(self, dagNode):
         """
@@ -621,7 +738,7 @@ class SceneWidget(QtGui.QGraphicsScene):
             if item.dagNode == dagNode:
                 return item
         return None
-        
+
 
     def drawEdges(self):
         """
@@ -653,8 +770,8 @@ class SceneWidget(QtGui.QGraphicsScene):
         """
         self.clear()
         self.dag = dag
-    
-    
+
+
     def addExistingDagNode(self, dagNode, position):
         """
         Adds a new draw node for a given dag node at a given position.
@@ -663,7 +780,7 @@ class SceneWidget(QtGui.QGraphicsScene):
         self.addItem(newNode)
         newNode.setPos(position)
         return newNode
-    
+
 
     def addExistingConnection(self, fromDagNode, toDagNode):
         """
@@ -672,9 +789,11 @@ class SceneWidget(QtGui.QGraphicsScene):
         fromDrawNode = self.drawNode(fromDagNode)
         toDrawNode = self.drawNode(toDagNode)
         if not fromDrawNode:
-            raise RuntimeError("Attempting to connect node %s which is not yet registered to QGraphicsScene." % fromDagNode.name)
+            raise RuntimeError(
+                "Attempting to connect node %s which is not yet registered to QGraphicsScene." % fromDagNode.name)
         if not toDrawNode:
-            raise RuntimeError("Attempting to connect node %s which is not yet registered to QGraphicsScene." % toDagNode.name)
+            raise RuntimeError(
+                "Attempting to connect node %s which is not yet registered to QGraphicsScene." % toDagNode.name)
         newDrawEdge = DrawEdge(fromDrawNode, toDrawNode)
         self.addItem(newDrawEdge)
         return newDrawEdge
@@ -705,7 +824,7 @@ class SceneWidget(QtGui.QGraphicsScene):
                 self.removeItem(box)
                 return
         raise RuntimeError("Group box named %s does not appear to exist in the QGraphicsScene." % name)
-    
+
 
     def refreshDrawNodes(self, dagNodes):
         """
@@ -713,7 +832,7 @@ class SceneWidget(QtGui.QGraphicsScene):
         """
         for drawNode in [self.drawNode(n) for n in dagNodes]:
             drawNode.update()
-    
+
 
     def setHighlightNodes(self, drawNodes, intensities=None):
         """
@@ -723,25 +842,26 @@ class SceneWidget(QtGui.QGraphicsScene):
         self.highlightIntensities = intensities
         oldHighlightNodes = self.highlightNodes
         self.highlightNodes = drawNodes
-        for drawNode in drawNodes+oldHighlightNodes:
+        for drawNode in drawNodes + oldHighlightNodes:
             drawNode.update()
-    
-    
+
+
     def setCascadingHighlightNodesFromOrderedDependencies(self, dagNodeOrigin):
         """
         Recover a list of ordered dependencies for a given dag node, and 
         highlight each of the nodes it depends on.
         """
-        highlightDrawNodesDarkToLight = [self.drawNode(n) for n in self.dag.orderedNodeDependenciesAt(dagNodeOrigin, onlyUnfulfilled=False)]
+        highlightDrawNodesDarkToLight = [self.drawNode(n) for n in
+                                         self.dag.orderedNodeDependenciesAt(dagNodeOrigin, onlyUnfulfilled=False)]
         intensities = list()
         nodeCount = len(highlightDrawNodesDarkToLight)
         if nodeCount > 1:
             for i in range(nodeCount):
-                intensities.append(0.65 + (0.35 * float(i)/float(nodeCount-1)))
+                intensities.append(0.65 + (0.35 * float(i) / float(nodeCount - 1)))
         else:
             intensities = [1.0]
         self.setHighlightNodes(highlightDrawNodesDarkToLight, intensities)
-    
+
 
     def mousePressEvent(self, event):
         """
@@ -754,8 +874,8 @@ class SceneWidget(QtGui.QGraphicsScene):
             event.accept()
             return
         QtGui.QGraphicsScene.mousePressEvent(self, event)
-        
-    
+
+
     def nodeMetaDict(self):
         """
         Returns a dictionary containing meta information for each of the draw 
@@ -800,13 +920,13 @@ class SceneWidget(QtGui.QGraphicsScene):
         for de in self.drawEdges():
             self.removeItem(de)
         for dagNode in self.dag.nodes():
-            newNode = self.addExistingDagNode(dagNode, QtCore.QPointF(0,0))
+            newNode = self.addExistingDagNode(dagNode, QtCore.QPointF(0, 0))
             if selectedItems and dagNode in [x.dagNode for x in selectedItems]:
                 newNode.setSelected(True)
         for connection in self.dag.connections():
             newDrawEdge = self.addExistingConnection(connection[1], connection[0])
         self.blockSignals(False)
-        
+
         # DrawNodes get their locations set from this meta entry
         expectedNodeMeta = snapshotDict["NODE_META"]
         if expectedNodeMeta:
@@ -818,7 +938,7 @@ class SceneWidget(QtGui.QGraphicsScene):
                 if 'locationY' in nodeMeta:
                     locationY = float(nodeMeta['locationY'])
                 drawNode.setPos(QtCore.QPointF(locationX, locationY))
-                
+
         # DrawEdges get their insertion points set here
         expectedConnectionMeta = snapshotDict["CONNECTION_META"]
         if expectedConnectionMeta:
@@ -827,11 +947,11 @@ class SceneWidget(QtGui.QGraphicsScene):
                 connectionMeta = expectedConnectionMeta[connectionIdString]
                 if 'horizontalConnectionOffset' in connectionMeta:
                     # TODO: This code is a little verbose...
-                    drawEdge = self.drawEdge(self.drawNode(self.dag.node(nUUID=connection[1].uuid)), 
+                    drawEdge = self.drawEdge(self.drawNode(self.dag.node(nUUID=connection[1].uuid)),
                                              self.drawNode(self.dag.node(nUUID=connection[0].uuid)))
                     drawEdge.horizontalConnectionOffset = float(connectionMeta['horizontalConnectionOffset'])
                     drawEdge.adjust()
-        
+
 
 ###############################################################################
 ###############################################################################
@@ -840,7 +960,7 @@ class GraphicsViewWidget(QtGui.QGraphicsView):
     The QGraphicsView into a QGraphicsScene it owns.  This object handles the
     mouse and board behavior of the dependency graph inside the view.
     """
-    
+
     # Signals
     createNode = QtCore.Signal(type, QtCore.QPointF)
 
@@ -854,7 +974,7 @@ class GraphicsViewWidget(QtGui.QGraphicsView):
         scene.setItemIndexMethod(QtGui.QGraphicsScene.NoIndex)
         scene.setSceneRect(-20000, -20000, 40000, 40000)
         self.setScene(scene)
-        
+
         # Mouse Interaction
         self.setCacheMode(QtGui.QGraphicsView.CacheBackground)
         self.setRenderHint(QtGui.QPainter.Antialiasing)
@@ -870,12 +990,12 @@ class GraphicsViewWidget(QtGui.QGraphicsView):
         self.setWindowTitle(self.tr("Depends"))
         self.setMinimumSize(200, 200)
         self.scale(1.0, 1.0)
-        #self.setFocusPolicy(QtCore.Qt.StrongFocus)
-        
+        # self.setFocusPolicy(QtCore.Qt.StrongFocus)
+
         # Context menu hookups
         self.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self.showContextMenu)
-        
+
         self.boxing = False
         self.modifierBoxOrigin = None
         self.modifierBox = QtGui.QRubberBand(QtGui.QRubberBand.Rectangle, self)
@@ -888,8 +1008,8 @@ class GraphicsViewWidget(QtGui.QGraphicsView):
         topLeft = QtCore.QPointF(self.horizontalScrollBar().value(), self.verticalScrollBar().value())
         topLeft += self.geometry().center()
         return topLeft
-        
-        
+
+
     def frameBounds(self, bounds):
         """
         Frames a given bounding rectangle within the viewport.
@@ -899,9 +1019,9 @@ class GraphicsViewWidget(QtGui.QGraphicsView):
         widthAdjust = bounds.width() * 0.2
         heightAdjust = bounds.height() * 0.2
         bounds.adjust(-widthAdjust, -heightAdjust, widthAdjust, heightAdjust)
-        self.fitInView(bounds, QtCore.Qt.KeepAspectRatio)       
-        
-        
+        self.fitInView(bounds, QtCore.Qt.KeepAspectRatio)
+
+
     def showContextMenu(self, menuLocation):
         """
         Pop up a node creation context menu at a given location.
@@ -924,7 +1044,7 @@ class GraphicsViewWidget(QtGui.QGraphicsView):
             action.setData((action.data()[0], self.mapToScene(menuLocation)))
             cat.addAction(action)
         contextMenu.exec_(self.mapToGlobal(menuLocation))
-        
+
 
     def event(self, event):
         # have to trap the tab key in the general 'event' handler
@@ -955,14 +1075,13 @@ class GraphicsViewWidget(QtGui.QGraphicsView):
             for item in itemList:
                 bounds |= item.sceneBoundingRect()
             self.frameBounds(bounds)
-            
+
         # Highlight each node upstream that affects the selected node
         elif event.key() == QtCore.Qt.Key_Space:
             sel = self.scene().selectedItems()
             if len(sel) != 1:
                 return
             self.scene().setCascadingHighlightNodesFromOrderedDependencies(sel[0].dagNode)
-
 
 
     def keyReleaseEvent(self, event):
@@ -976,7 +1095,6 @@ class GraphicsViewWidget(QtGui.QGraphicsView):
         # Clear the highlight list if you just released the space bar
         if event.key() == QtCore.Qt.Key_Space:
             self.scene().setHighlightNodes([], intensities=None)
-
 
 
     def mousePressEvent(self, event):
@@ -1007,7 +1125,7 @@ class GraphicsViewWidget(QtGui.QGraphicsView):
             self.lastMousePos = event.pos()
         else:
             self.lastMousePos = event.pos()
-        
+
         # Handle Modifier+MouseClick box behavior
         if event.buttons() & QtCore.Qt.LeftButton and event.modifiers() & QtCore.Qt.ControlModifier:
             if self.boxing:
@@ -1029,7 +1147,8 @@ class GraphicsViewWidget(QtGui.QGraphicsView):
             # gets emitted at the very end.  This was necessary since the way I
             # have written the property widget appears to freak out when refreshing
             # twice instantaneously (see MainWindow's constructor for additional details).
-            nodesInHitBox = [x for x in self.items(QtCore.QRect(self.modifierBoxOrigin, event.pos()).normalized()) if type(x) is DrawNode]
+            nodesInHitBox = [x for x in self.items(QtCore.QRect(self.modifierBoxOrigin, event.pos()).normalized()) if
+                             type(x) is DrawNode]
             self.scene().blockSignals(True)
             for drawNode in nodesInHitBox:
                 drawNode.setSelected(not drawNode.isSelected())
@@ -1052,7 +1171,7 @@ class GraphicsViewWidget(QtGui.QGraphicsView):
         Filling.
         """
         sceneRect = self.sceneRect()
-        painter.fillRect(rect.intersect(sceneRect), QtGui.QBrush(QtCore.Qt.black, QtCore.Qt.SolidPattern))
+        painter.fillRect(rect.intersect(sceneRect), QtGui.QBrush(QtCore.Qt.darkGray, QtCore.Qt.SolidPattern))
         painter.drawRect(sceneRect)
 
 

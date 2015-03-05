@@ -406,35 +406,6 @@ class OutputEdit(QtGui.QWidget):
         self.subGroups = dict()
         self.currentSubGroup = None
 
-        # Make all possible widget collections
-        for outputType in self.output.allPossibleOutputTypes():
-            subGroup = QtGui.QGroupBox("%s (Type: %s)" % (output.name, outputType.__name__[len("DataPacket"):]))
-            subLayout = QtGui.QVBoxLayout()
-            subOutputs = depends_data_packet.filenameDictForDataPacketType(outputType)
-            i = 0
-            for subOutputName in subOutputs:
-                newThing = GeneralEdit(label=subOutputName, 
-                                       tighter=True, 
-                                       isFileType=True if i == len(subOutputs)-1 else False, 
-                                       toolTip=self.output.docString, 
-                                       customFileDialogName=self.output.customFileDialogName, 
-                                       parent=subGroup)
-                i += 1
-                newThing.setValue(dagNode.outputValue(output.name, subOutputName, variableSubstitution=False))
-                newThing.setRange(dagNode.outputRange(output.name, variableSubstitution=False))
-                newThing.valueChanged.connect(self.valueChangedStub)
-                newThing.rangeChanged.connect(self.rangeChangedStub)
-                subLayout.addWidget(newThing)
-            subGroup.setLayout(subLayout)
-            self.subGroups[outputType] = subGroup
-
-        # Ask the DAG what's really going through this node and set the group accordingly
-        outputType = self.dag.nodeOutputType(self.dagNode, self.output)
-        self.currentSubGroup = self.subGroups[outputType]
-        self.outputLayout = QtGui.QVBoxLayout()
-        self.outputLayout.addWidget(self.currentSubGroup)
-        parent.setLayout(self.outputLayout)
-
 
     def valueChangedStub(self, subName, value, type):
         """

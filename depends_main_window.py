@@ -23,7 +23,6 @@ import depends_undo_commands
 import depends_property_widget
 import depends_variable_widget
 import depends_graphics_widgets
-import depends_scenegraph_widget
 
 
 """
@@ -65,16 +64,6 @@ class MainWindow(QtGui.QMainWindow):
         self.propWidget = depends_property_widget.PropWidget(self)
         self.propDock.setWidget(self.propWidget)
 
-        # Create the docking widget for the sceneGraph dialog
-        self.sceneGraphDock = QtGui.QDockWidget()
-        self.sceneGraphDock.setObjectName('sceneGraphDock')
-        self.sceneGraphDock.setAllowedAreas(QtCore.Qt.RightDockWidgetArea | QtCore.Qt.LeftDockWidgetArea)
-        self.sceneGraphDock.setWindowTitle("Scene Graph")
-        self.addDockWidget(QtCore.Qt.RightDockWidgetArea, self.sceneGraphDock)
-
-        # Create and add the sceneGraph dialog to the dock widget
-        self.sceneGraphWidget = depends_scenegraph_widget.SceneGraphWidget(self)
-        self.sceneGraphDock.setWidget(self.sceneGraphWidget)
 
         # Create the docking widget for the variable dialog
         self.variableDock = QtGui.QDockWidget()
@@ -128,7 +117,6 @@ class MainWindow(QtGui.QMainWindow):
         executeMenu.addAction(QtGui.QAction("&Reload plugins", self, shortcut= "Ctrl+0", triggered=self.reloadPlugins))
         windowMenu = self.menuBar().addMenu("&Window")
         windowMenu.addAction(self.propDock.toggleViewAction())
-        windowMenu.addAction(self.sceneGraphDock.toggleViewAction())
         windowMenu.addAction(self.variableDock.toggleViewAction())
 
         # Application settings
@@ -147,18 +135,6 @@ class MainWindow(QtGui.QMainWindow):
         for action in self.createCreateMenuActions():
             createMenu.addAction(action)
 
-        # Generate the Output Recipe menu.  Must be done after plugins are loaded.
-        self.recipeQActionGroup = QtGui.QActionGroup(self)
-        self.recipeQActionGroup.setExclusive(True)
-        firstRecipeAction = True
-        for recipeAction in self.createRecipeMenuItems():
-            recipeAction.setCheckable(True)
-            recipeAction.setActionGroup(self.recipeQActionGroup)
-            recipeMenu.addAction(recipeAction)
-            if firstRecipeAction:
-                recipeAction.setChecked(True)
-                firstRecipeAction = False
-        self.setActiveOutputRecipe("Bash Output Recipe")
 
         # Load the starting filename or create a new DAG
         self.workingFilename = startFile
@@ -186,9 +162,6 @@ class MainWindow(QtGui.QMainWindow):
         self.propWidget.attrChanged.connect(self.propertyEdited)
         self.propWidget.rangeChanged.connect(self.propertyRangeEdited)
         self.propWidget.mouseover.connect(self.highlightDagNodes)
-        self.propWidget.mouseover.connect(self.sceneGraphWidget.highlightRowsUsingNodes)
-        self.sceneGraphWidget.mouseover.connect(self.highlightDagNodes)
-        self.sceneGraphWidget.mouseover.connect(self.propWidget.highlightInputs)
         self.variableWidget.addVariable.connect(depends_variables.add)
         self.variableWidget.setVariable.connect(depends_variables.setx)
         self.variableWidget.removeVariable.connect(depends_variables.remove)
@@ -215,16 +188,6 @@ class MainWindow(QtGui.QMainWindow):
     ###########################################################################
     ## Internal functionality
     ###########################################################################
-    def updateScenegraph(self, dagNodes):
-        """
-        Rebuild the scenegraph widget based on the given dag nodes.
-        """
-        if dagNodes and len(dagNodes) == 1:
-            liveSceneGraph = self.dag.buildSceneGraph(dagNodes[0])
-            self.sceneGraphWidget.rebuild(liveSceneGraph, dagNodes[0])
-        else:
-            self.sceneGraphWidget.rebuild(None, None)
-
 
     def selectedDagNodes(self):
         """
@@ -400,7 +363,6 @@ class MainWindow(QtGui.QMainWindow):
 
         # A few refreshes
         self.propWidget.refresh()
-        self.updateScenegraph(self.selectedDagNodes())
         self.graphicsScene.refreshDrawNodes(nodesAffected)
 
 
@@ -459,7 +421,6 @@ class MainWindow(QtGui.QMainWindow):
         self.dag.disconnectNodes(fromDagNode, toDagNode)
 
         # A few refreshes
-        self.updateScenegraph(self.selectedDagNodes())
         self.propWidget.refresh()
         self.graphicsScene.refreshDrawNodes(nodesAffected)
 
@@ -470,7 +431,6 @@ class MainWindow(QtGui.QMainWindow):
         about it.
         """
         self.dag.connectNodes(fromDagNode, toDagNode)
-        self.updateScenegraph(self.selectedDagNodes())
 
 
     def propertyEdited(self, dagNode, propName, newValue, propertyType=None):
@@ -598,7 +558,6 @@ class MainWindow(QtGui.QMainWindow):
         """
         selectedDagNodes = self.selectedDagNodes()
         self.propWidget.rebuild(self.dag, selectedDagNodes)
-        self.updateScenegraph(selectedDagNodes)
         self.selectionTimer.stop()
 
 
@@ -967,9 +926,6 @@ class MainWindow(QtGui.QMainWindow):
         # Initialize the objects inside the graphWidget & restore the scene
         self.graphicsScene.restoreSnapshot(snapshot["DAG"])
 
-        # Tell the sceneGraphWidget about the new groups
-        for key in self.dag.nodeGroupDict:
-            self.graphicsScene.addExistingGroupBox(key, self.dag.nodeGroupDict[key])
 
         # Variable substitutions
         self.clearVariableDictionary()

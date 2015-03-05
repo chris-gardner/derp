@@ -58,7 +58,7 @@ class DagNodeInput(object):
     a flag denoting if it's required or not, a name, and documentation.
     """
 
-    def __init__(self, name, dataPacketType, required, docString=None):
+    def __init__(self, name, dataType='', required=True, docString=None):
         """
         """
         self.name = name
@@ -67,20 +67,9 @@ class DagNodeInput(object):
         self.docString = docString
         
         # Constants, not written to disk
-        self.dataPacketType = dataPacketType
+        self.dataType = dataType
         self.required = required
     
-    
-    def allPossibleInputTypes(self):
-        """
-        Return a list of all possible DataPacket types this input accepts.
-        This is interesting because inputs can accept DataPakcets of a type
-        that is inherited from its base type.
-        """
-        inputTypeList = set([self.dataPacketType])
-        inputTypeList |= set(depends_util.allClassChildren(self.dataPacketType))
-        return inputTypeList
-        
 
     # TODO: Should my dictionary keys be more interesting?
     def __hash__(self):
@@ -100,60 +89,15 @@ class DagNodeOutput(object):
     a single sequence range is present for an entire output.
     """
     
-    def __init__(self, name, dataPacketType, docString=None, customFileDialogName=None):
+    def __init__(self, name, dataType='', docString=None):
         """
         """
         self.name = name
         self.value = dict()
         self.seqRange = None
         self.docString = docString
-        self.customFileDialogName = customFileDialogName
 
-        # Constants, not written to disk
-        self.dataPacketType = dataPacketType
-
-        # Note: We add the largest possible set of attributes this node can have from 
-        #       its datapacket and all the datapacket's children types
-        allPossibleFileDescriptorNames = set()
-        for tipe in self.allPossibleOutputTypes():
-            for fdName in depends_data_packet.filenameDictForDataPacketType(tipe):
-                allPossibleFileDescriptorNames.add(fdName)
-        for fdName in allPossibleFileDescriptorNames:
-            self.value[fdName] = ""
-            self.seqRange = None
-
-
-    def allPossibleOutputTypes(self):
-        """
-        Returns a list of all type data packet types this node can output.
-        """
-        outputTypeList = set([self.dataPacketType])
-        outputTypeList |= set(depends_util.allClassChildren(self.dataPacketType))
-        return outputTypeList
-
-
-    def subOutputNames(self):
-        """
-        Return a list of the names of each of this output's data packet sub-types.
-        """
-        subList = list()
-        for subName in self.value:
-            subList.append(subName)
-        return subList
-
-
-    def getSeqRange(self):
-        """
-        Gets the single sequence range for this output.
-        """
-        if not self.seqRange:
-            return None
-        if self.seqRange[0] is None or self.seqRange[1] is None:
-            return None
-        if self.seqRange[0] == "" or self.seqRange[1] == "":
-            return None
-        return self.seqRange
-        
+        self.dataType = dataType
 
     # TODO: Should my dictionary keys be more interesting?
     def __hash__(self):
@@ -224,7 +168,7 @@ class DagNode(object):
             self._properties[self._outputNameInPropertyDict(output.name)] = output
         for attribute in self._defineAttributes():
             self._properties[attribute.name] = attribute
-            
+
 
     def __str__(self):
         """
@@ -546,17 +490,7 @@ class DagNode(object):
         # (specialization is a dict keying off outputName, containing outputType)
         dpList = list()
         for output in self.outputs():
-            outputType = output.dataPacketType
-            # If a specializationDict has been supplied, use the given type
-            if specializationDict and output.name in specializationDict:
-                outputType = specializationDict[output.name]
-            # Create the new datapacket and populate its attributes.
-            newDataPacket = outputType(self, output.name)
-            for fdName in newDataPacket.filenames:
-                newDataPacket.setFilename(fdName, self.outputValue(output.name, fdName))
-                # TODO: This happens multiple times right now.  Once the UI is fixed, it won't
-                newDataPacket.setSequenceRange(self.outputRange(output.name, fdName))
-            dpList.append(newDataPacket)
+            dpList.append(output.dataType)
         return dpList
 
 
@@ -591,14 +525,20 @@ class DagNode(object):
         """
         Defines the list of input objects for the node.
         """
-        return list()
+        return [
+            DagNodeInput('input1', 'string', None),
+            ]
     
     
     def _defineOutputs(self):
         """
         Defines the list of output objects for the node.
         """
-        return list()
+        return [
+            DagNodeOutput('output1', 'string', None),
+            DagNodeOutput('output2', 'string', None),
+            DagNodeOutput('output3', 'string', None),
+            ]
     
     
     def _defineAttributes(self):

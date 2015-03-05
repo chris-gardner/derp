@@ -156,51 +156,6 @@ class DAG:
         return self.staleNodeDict[dagNode]
     
 
-    def buildSceneGraph(self, atNode):
-        """
-        Evaluate the DAG in a postorder fashion to create a list of the data 
-        packets in the scene graph sorted by execution order.
-        """
-        dagPathList = list()
-        nodeEvalOrder = networkx.dfs_postorder_nodes(self.network, atNode)
-        for dagNode in nodeEvalOrder:
-            # Retrieve specialized output types
-            specializationDict = dict()
-            for output in dagNode.outputs():
-                specializationDict[output.name] = self.nodeOutputType(dagNode, output)
-            dagPathList.extend(dagNode.sceneGraphHandle(specializationDict))
-        return dagPathList
-
-
-    def nodeOrderedDataPackets(self, dagNode, onlyUnfulfilled=False, onlyFulfilled=False):
-        """
-        Given a node, return which datapackets are povided to it, filtered by some flags.
-        Returns a list of tuples containing (Input, DataPacket).
-        """
-        validDataPackets = list()
-        orderedDataPackets = self.buildSceneGraph(dagNode)
-        scenegraphInputAndConnectedNode = [(i, self.nodeInputComesFromNode(dagNode, i)[0]) for i in dagNode.inputs()]
-
-        # Loop over the data packets in order, picking out the input associated with it (TODO: functionize)
-        for dataPacket in orderedDataPackets:
-            if dataPacket.sourceNode is dagNode:
-                continue
-            if dataPacket.sourceNode not in [i[1] for i in scenegraphInputAndConnectedNode]:
-                continue
-            if onlyFulfilled and not dataPacket.dataPresent():
-                continue
-            if onlyUnfulfilled and dataPacket.dataPresent():
-                continue
-            
-            # Recover the input that matches the current datapacket
-            input = None
-            for i in scenegraphInputAndConnectedNode:
-                if i[1] == dataPacket.sourceNode:
-                    input = i[0]
-            
-            validDataPackets.append((input, dataPacket))
-        return validDataPackets
-
 
     def orderedNodeDependenciesAt(self, dagNode, includeGivenNode=True, onlyUnfulfilled=True, recursion=True):
         """
@@ -273,21 +228,8 @@ class DAG:
         and parameters.  This function reports exactly which data packet type is coming
         out of a given node.
         """
-        # If your output has only one potential type, you've gotta' be what you are.
-        if len(output.allPossibleOutputTypes()) == 1:
-            return output.dataPacketType
-        
-        # Which input is associated with this output?
-        input = dagNode.inputAffectingOutput(output)
-        if not input:
-            return output.dataPacketType
-        
-        # Return the type of the found input since the output is going to match.
-        (inputNode, inputNodeOutput) = self.nodeInputComesFromNode(dagNode, input)
-        if not inputNode:
-            return output.dataPacketType
-        return self.nodeOutputType(inputNode, inputNodeOutput)
-        
+        return output.dataType
+
 
     def nodeInputComesFromNode(self, dagNode, input):
         """
