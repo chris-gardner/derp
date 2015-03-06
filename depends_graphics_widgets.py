@@ -41,7 +41,7 @@ class DrawNodeInputNub(QtGui.QGraphicsItem):
         self.index = index
 
         self.radius = 10.0
-        self.verticalOffset = (self.index * self.radius) + (self.index * 5) - 20
+        self.verticalOffset = (self.index * self.radius) + (self.index * 5) + 30
         self.name = name
 
         self.setToolTip(self.name)
@@ -58,7 +58,7 @@ class DrawNodeInputNub(QtGui.QGraphicsItem):
         """
         Defines the clickable hit box.
         """
-        return QtCore.QRectF(-self.parentItem().width / 2 - (self.radius / 2), self.verticalOffset, 10, 10)
+        return QtCore.QRectF(-self.radius / 2, self.verticalOffset, self.radius, self.radius)
 
 
     def paint(self, painter, option, widget):
@@ -91,7 +91,7 @@ class DrawNodeOutputNub(QtGui.QGraphicsItem):
         self.radius = 10.0
         self.name = name
 
-        self.verticalOffset = (self.index * self.radius) + (self.index * 10) - 20
+        self.verticalOffset = (self.index * self.radius) + (self.index * 10) + 30
         self.setToolTip(self.name)
 
 
@@ -106,7 +106,7 @@ class DrawNodeOutputNub(QtGui.QGraphicsItem):
         """
         Defines the clickable hit box.
         """
-        return QtCore.QRectF((self.parentItem().width / 2) - (self.radius / 2), self.verticalOffset, 60, self.radius)
+        return QtCore.QRectF(self.parentItem().width - (self.radius / 2), self.verticalOffset, self.radius, self.radius)
 
 
     def paint(self, painter, option, widget):
@@ -119,15 +119,8 @@ class DrawNodeOutputNub(QtGui.QGraphicsItem):
         circleRect= QtCore.QRectF(self.boundingRect().left(), self.boundingRect().top(),
                                   self.radius, self.radius)
 
-        painter.drawEllipse(circleRect)
+        painter.drawEllipse(self.boundingRect())
 
-        # textRect = QtCore.QRectF(self.boundingRect().left(), self.boundingRect().top(),
-        #                          40, self.radius + 10)
-        # font = painter.font()
-        # font.setPointSize(10)
-        # painter.setFont(font)
-        # painter.setPen(QtCore.Qt.black)
-        # painter.drawText(textRect, QtCore.Qt.AlignRight, 'asdf')
 
 
     def mousePressEvent(self, event):
@@ -274,10 +267,7 @@ class DrawNode(QtGui.QGraphicsItem):
         #   if self.width < 9: 
         #       self.width = 9
         adjust = 2.0
-        return QtCore.QRectF(-self.width / 2 - adjust,
-                             -self.height / 2 - adjust,
-                             self.width + 3 + adjust,
-                             self.height + 3 + adjust)
+        return QtCore.QRectF(0, 0, self.width + 3 + adjust, self.height + 3 + adjust)
 
     def shape(self):
         """
@@ -285,7 +275,7 @@ class DrawNode(QtGui.QGraphicsItem):
         """
         # TODO: Find out what this is for again?
         path = QtGui.QPainterPath()
-        path.addRoundedRect(QtCore.QRectF(-self.width / 2, -self.height / 2, self.width, self.height), 5, 5)
+        path.addRoundedRect(self.boundingRect(), 5, 5)
         return path
 
 
@@ -320,7 +310,7 @@ class DrawNode(QtGui.QGraphicsItem):
         else:
             painter.setPen(QtGui.QPen(QtCore.Qt.black, 0))
         painter.setBrush(QtGui.QBrush(gradient))
-        fullRect = QtCore.QRectF(-self.width / 2, -self.height / 2, self.width, self.height)
+        fullRect = QtCore.QRectF(0, 0, self.width, self.height)
         painter.drawRoundedRect(fullRect, 2, 2)
 
         # No lights or text for dot nodes
@@ -334,11 +324,10 @@ class DrawNode(QtGui.QGraphicsItem):
         # The stale light overrides all
         if self.scene().dag.nodeStaleState(self.dagNode):
             painter.setBrush(QtGui.QBrush(QtGui.QColor(0, 59, 174)))
-        painter.drawRect(QtCore.QRectF(-self.width / 2 + 5, -self.height / 2 + 5, 5, 5))
+        painter.drawRect(QtCore.QRectF(5, 5, 5, 5))
 
         # Text (none for dot nodes)
-        textRect = QtCore.QRectF(self.boundingRect().left() + 4, self.boundingRect().top(),
-                                 self.boundingRect().width() - 4, 30)
+        textRect = QtCore.QRectF(4, 4, self.boundingRect().width() - 4, 30)
         font = painter.font()
         font.setPointSize(14)
         painter.setFont(font)
@@ -348,16 +337,18 @@ class DrawNode(QtGui.QGraphicsItem):
 
         # draw inputs
         for count, input in enumerate(self.dagNode.inputs()):
-            verticalOffset = (count * 10) + (count * 10) - 20
+            verticalOffset = (count * 10) + (count * 10) + 30
 
-            textRect = QtCore.QRectF(self.boundingRect().left() + 10, verticalOffset, (self.boundingRect().width() / 2), 20)
+            textRect = QtCore.QRectF(self.boundingRect().left() + 10, verticalOffset,
+                                     (self.boundingRect().width() / 2), 20)
             painter.drawText(textRect, QtCore.Qt.AlignLeft, input.name)
 
         # draw outputs
         for count, output in enumerate(self.dagNode.outputs()):
-            verticalOffset = (count * 10) + (count * 10) - 20
+            verticalOffset = (count * 10) + (count * 10) + 30
 
-            textRect = QtCore.QRectF(0, verticalOffset, (self.boundingRect().width() / 2) - 10, 20)
+            textRect = QtCore.QRectF(self.boundingRect().width() / 2, verticalOffset,
+                                     (self.boundingRect().width() / 2) - 10, 20)
             painter.drawText(textRect, QtCore.Qt.AlignRight, output.name)
 
 
