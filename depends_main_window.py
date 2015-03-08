@@ -425,12 +425,14 @@ class MainWindow(QtGui.QMainWindow):
         self.graphicsScene.refreshDrawNodes(nodesAffected)
 
     
-    def nodesConnected(self, fromDagNode, toDagNode):
+    def nodesConnected(self, fromDagNode, toDagNode, sourcePort, destPort):
         """
         When the user interface connects two nodes, tell the in-flight dag
         about it.
         """
-        self.dag.connectNodes(fromDagNode, toDagNode)
+        print 'connecting nodes', fromDagNode, toDagNode
+        print 'ports', sourcePort, destPort
+        self.dag.connectNodes(fromDagNode, toDagNode, start_port=sourcePort, end_port=destPort )
 
 
     def propertyEdited(self, dagNode, propName, newValue, propertyType=None):
@@ -692,15 +694,6 @@ class MainWindow(QtGui.QMainWindow):
         """
         singleDollarList = list()
         doubleDollarList = list()
-        for input in dagNode.inputs():
-            vps = depends_variables.present(dagNode.inputValue(input.name, variableSubstitution=False))
-            vss = (list(), list())
-            vss2 = (list(), list())
-            if dagNode.inputRange(input.name, variableSubstitution=False):
-                vss = depends_variables.present(dagNode.inputRange(input.name, variableSubstitution=False)[0])
-                vss2 = depends_variables.present(dagNode.inputRange(input.name, variableSubstitution=False)[1])
-            singleDollarList += vps[0] + vss[0] + vss2[0]
-            doubleDollarList += vps[1] + vss[1] + vss2[1]
         for attribute in dagNode.attributes():
             vps = depends_variables.present(dagNode.attributeValue(attribute.name, variableSubstitution=False))
             vss = (list(), list())
@@ -710,16 +703,6 @@ class MainWindow(QtGui.QMainWindow):
                 vss2 = depends_variables.present(dagNode.attributeRange(attribute.name, variableSubstitution=False)[1])
             singleDollarList += vps[0] + vss[0] + vss2[0]
             doubleDollarList += vps[1] + vss[1] + vss2[1]
-        for output in dagNode.outputs():
-            for subName in output.subOutputNames():
-                vps = depends_variables.present(dagNode.outputValue(output.name, subName, variableSubstitution=False))
-                vss = (list(), list())
-                vss2 = (list(), list())
-                if dagNode.outputRange(output.name, variableSubstitution=False):
-                    vss = depends_variables.present(dagNode.outputRange(output.name, variableSubstitution=False)[0])
-                    vss2 = depends_variables.present(dagNode.outputRange(output.name, variableSubstitution=False)[1])
-                singleDollarList += vps[0] + vss[0] + vss2[0]
-                doubleDollarList += vps[1] + vss[1] + vss2[1]
         return (list(set(singleDollarList)), list(set(doubleDollarList)))
 
 
@@ -871,24 +854,18 @@ class MainWindow(QtGui.QMainWindow):
         # include ourselves at the end
         orderedDependencies.append(dagNode)
         print orderedDependencies
-        try:
-            self.dagNodesSanityCheck(orderedDependencies)
-        except Exception, err:
-            print err
-            print "Aborting Dag execution."
-            return
+        # try:
+        #     self.dagNodesSanityCheck(orderedDependencies)
+        # except Exception, err:
+        #     print err
+        #     print "Aborting Dag execution."
+        #     return
         
         executionList = list()
         for dagNode in orderedDependencies:
             print 'executing ', dagNode
-            # A dictionary with key=input & data=datapacket
-            dataPacketDict = dict(self.dag.nodeOrderedDataPackets(dagNode))
-            
-            # Pre-execution hook
-            preCommandList = dagNode.preProcess(dataPacketDict)
-            if preCommandList:
-                executionList.append((dagNode.name + " [Pre-execution]", preCommandList))
-            
+
+
             # Command execution
             splitOperationFlag = True if self.dag.nodeGroupCount(dagNode) else False
             #commandList = dagNode.executeList(dataPacketDict, splitOperations=splitOperationFlag)
@@ -897,10 +874,6 @@ class MainWindow(QtGui.QMainWindow):
             commandList = dagNode.executePython(nodesBefore)
             executionList.append((dagNode.name, commandList))
             
-            # Post-execution hook
-            postCommandList = dagNode.postProcess(dataPacketDict)
-            if postCommandList:
-                executionList.append((dagNode.name + " [Post-execution]", postCommandList))
         print executionList
 
 

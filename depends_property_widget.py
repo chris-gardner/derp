@@ -613,14 +613,6 @@ class PropWidget(QtGui.QWidget):
             elif title == "Attributes": attributeBox = gb
             elif title == "Outputs": outputBox = gb
         
-        if inputBox:
-            inputEdits = inputBox.findChildren(InputEdit)
-            for inputEdit in inputEdits:
-                inputEdit.blockSignals(True)
-                inputName = inputEdit.label.text()
-                inputEdit.setValue(self.dagNode.inputValue(inputName, variableSubstitution=False))
-                inputEdit.setRange(self.dagNode.inputRange(inputName, variableSubstitution=False))
-                inputEdit.blockSignals(False)
         if attributeBox:
             attributeEdits = attributeBox.findChildren(AttrEdit)
             for attrEdit in attributeEdits:
@@ -629,9 +621,5 @@ class PropWidget(QtGui.QWidget):
                 attrEdit.setValue(self.dagNode.attributeValue(attributeName, variableSubstitution=False))
                 attrEdit.setRange(self.dagNode.attributeRange(attributeName, variableSubstitution=False))
                 attrEdit.blockSignals(False)
-        if outputBox:
-            outputEdits = outputBox.findChildren(OutputEdit)
-            for outputEdit in outputEdits:
-                outputEdit.refresh()
-                
-                
+
+

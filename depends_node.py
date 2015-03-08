@@ -527,6 +527,7 @@ class DagNode(object):
         """
         return [
             DagNodeInput('input1', 'string', None),
+            DagNodeInput('input2', 'string', None),
             ]
     
     
@@ -712,12 +713,6 @@ class DagNodeDot(DagNode):
         self.category = 'Utility'
         DagNode.__init__(self, name)
 
-    def _defineInputs(self):
-        return []
-        
-    def _defineOutputs(self):
-        return [] 
-
     def _defineAttributes(self):
         return []
 
@@ -729,26 +724,3 @@ class DagNodeDot(DagNode):
             self.outVal = nodesBefore[0].outVal
 
 
-###############################################################################
-###############################################################################
-class DagNodeCoalesce(DagNode):
-    """
-    The coalesce node takes a variety of inputs and collates them into a single
-    sequence.  This is done by creating symlinks in a temporary location on disk.
-    """
-    # TODO
-    def __init__(self, name=""):
-        self.category = 'Utility'
-        DagNode.__init__(self, name)
-
-    def _defineInputs(self):
-        return []
-        
-    def _defineOutputs(self):
-        return [] 
-
-    def _defineAttributes(self):
-        return []
-
-    def executeList(self, dataPacketDict):
-        pass

@@ -46,6 +46,17 @@ class DrawNodeInputNub(QtGui.QGraphicsItem):
 
         self.setToolTip(self.name)
 
+        self.edgeList = list()
+
+
+    def __addDrawEdge(self, edge):
+        """
+        Add a given draw edge to this node.
+        """
+        if edge.destDrawNode() == self:
+            self.edgeList.append(edge)
+        edge.adjust()
+
 
     def type(self):
         """
@@ -58,7 +69,7 @@ class DrawNodeInputNub(QtGui.QGraphicsItem):
         """
         Defines the clickable hit box.
         """
-        return QtCore.QRectF(-self.radius / 2, self.verticalOffset, self.radius, self.radius)
+        return QtCore.QRectF(0, 0, self.radius, self.radius)
 
 
     def paint(self, painter, option, widget):
@@ -94,6 +105,17 @@ class DrawNodeOutputNub(QtGui.QGraphicsItem):
         self.verticalOffset = (self.index * self.radius) + (self.index * 10) + 30
         self.setToolTip(self.name)
 
+        self.edgeList = list()
+
+
+    def __addDrawEdge(self, edge):
+        """
+        Add a given draw edge to this node.
+        """
+        if edge.sourceDrawNode() == self:
+            self.edgeList.append(edge)
+        edge.adjust()
+
 
     def type(self):
         """
@@ -106,7 +128,7 @@ class DrawNodeOutputNub(QtGui.QGraphicsItem):
         """
         Defines the clickable hit box.
         """
-        return QtCore.QRectF(self.parentItem().width - (self.radius / 2), self.verticalOffset, self.radius, self.radius)
+        return QtCore.QRectF(0, 0, self.radius, self.radius)
 
 
     def paint(self, painter, option, widget):
@@ -116,9 +138,6 @@ class DrawNodeOutputNub(QtGui.QGraphicsItem):
 
         painter.setBrush(QtGui.QBrush(QtCore.Qt.lightGray))
         painter.setPen(QtGui.QPen(QtCore.Qt.black, 1))
-        circleRect= QtCore.QRectF(self.boundingRect().left(), self.boundingRect().top(),
-                                  self.radius, self.radius)
-
         painter.drawEllipse(self.boundingRect())
 
 
@@ -127,7 +146,8 @@ class DrawNodeOutputNub(QtGui.QGraphicsItem):
         """
         Accept left-button clicks to create the new connection.
         """
-        tempEdge = DrawEdge(self.parentItem(), None, floatingDestinationPoint=event.scenePos())
+        print self.name
+        tempEdge = DrawEdge(self.parentItem(), None, floatingDestinationPoint=event.scenePos(), sourcePort=self.index)
         self.scene().addItem(tempEdge)
         self.ungrabMouse()
         tempEdge.dragging = True  # TODO: Probably better done with an DrawEdge function (still valid?)
@@ -159,6 +179,14 @@ class DrawNode(QtGui.QGraphicsItem):
         self.incomingDrawEdgeList = list()
         self.outgoingDrawEdgeList = list()
 
+        self.inNubs = []
+        for count, input in enumerate(dagNode.inputs()):
+            nub = DrawNodeInputNub(index=count, name=input.name)
+            nub.setParentItem(self)
+            self.inNubs.append(nub)
+        print self.inNubs
+
+
         self.outNubs = []
         for count, output in enumerate(dagNode.outputs()):
             nub = DrawNodeOutputNub(index=count, name=output.name)
@@ -166,13 +194,6 @@ class DrawNode(QtGui.QGraphicsItem):
             self.outNubs.append(nub)
         print self.outNubs
 
-        self.inNubs = []
-
-        for count, input in enumerate(dagNode.inputs()):
-            nub = DrawNodeInputNub(index=count, name=input.name)
-            nub.setParentItem(self)
-            self.inNubs.append(nub)
-        print self.inNubs
 
 
         self.setFlag(QtGui.QGraphicsItem.ItemIsMovable)
@@ -335,21 +356,38 @@ class DrawNode(QtGui.QGraphicsItem):
         painter.drawText(textRect, QtCore.Qt.AlignCenter, self.dagNode.name)
 
 
+        padding = 30
+        spacing = 10
+        halfRadius = 5
         # draw inputs
         for count, input in enumerate(self.dagNode.inputs()):
-            verticalOffset = (count * 10) + (count * 10) + 30
+
+            font = painter.font()
+            font.setPointSize(11)
+            painter.setFont(font)
+
+            verticalOffset = (count * spacing) + (count * spacing) + padding
 
             textRect = QtCore.QRectF(self.boundingRect().left() + 10, verticalOffset,
                                      (self.boundingRect().width() / 2), 20)
+
             painter.drawText(textRect, QtCore.Qt.AlignLeft, input.name)
+
+        for count, nub in enumerate(self.inNubs):
+            verticalOffset = (count * spacing) + (count * spacing) + padding
+            nub.setPos(-halfRadius, verticalOffset)
 
         # draw outputs
         for count, output in enumerate(self.dagNode.outputs()):
-            verticalOffset = (count * 10) + (count * 10) + 30
+            verticalOffset = (count * spacing) + (count * spacing) + padding
 
             textRect = QtCore.QRectF(self.boundingRect().width() / 2, verticalOffset,
-                                     (self.boundingRect().width() / 2) - 10, 20)
+                                     (self.boundingRect().width() / 2) - 15, 20)
             painter.drawText(textRect, QtCore.Qt.AlignRight, output.name)
+
+        for count, nub in enumerate(self.outNubs):
+            verticalOffset = (count * spacing) + (count * spacing) + padding
+            nub.setPos(self.boundingRect().width() - 10, verticalOffset)
 
 
 
@@ -402,7 +440,7 @@ class DrawEdge(QtGui.QGraphicsItem):
     Type = QtGui.QGraphicsItem.UserType + 2
 
 
-    def __init__(self, sourceDrawNode, destDrawNode, floatingDestinationPoint=0.0):
+    def __init__(self, sourceDrawNode, destDrawNode, floatingDestinationPoint=0.0, sourcePort=0, destPort=0):
         """
         """
         QtGui.QGraphicsItem.__init__(self)
@@ -415,6 +453,9 @@ class DrawEdge(QtGui.QGraphicsItem):
 
         self.setZValue(-2)
 
+        self.sourcePort = sourcePort
+        self.destPort = destPort
+
         self.source = sourceDrawNode
         self.dest = destDrawNode
         if self.dest:
@@ -426,6 +467,7 @@ class DrawEdge(QtGui.QGraphicsItem):
             self.source.addDrawEdge(self)
         else:
             self.floatingSourcePoint = floatingDestinationPoint
+
 
         self.adjust()
 
@@ -479,19 +521,23 @@ class DrawEdge(QtGui.QGraphicsItem):
             return
 
         if self.dest:
-            line = QtCore.QLineF(self.mapFromItem(self.source, 0, 0), self.mapFromItem(self.dest, 0, 0))
+            line = QtCore.QLineF(self.mapFromItem(self.source, self.source.width, 0), self.mapFromItem(self.dest, 0, 0))
         else:
-            line = QtCore.QLineF(self.mapFromItem(self.source, 0, 0), self.floatingDestinationPoint)
+            line = QtCore.QLineF(self.mapFromItem(self.source, self.source.width, 0), self.floatingDestinationPoint)
         length = line.length()
 
         if length == 0.0:
             return
 
+        radius = 5
+
+        sourceOffset = (self.sourcePort * 10) + (self.sourcePort * 10) + 30 + radius
+        destOffset = (self.destPort * 10) + (self.destPort * 10) + 30 + radius
+
         self.prepareGeometryChange()
-        self.sourcePoint = line.p1() + QtCore.QPointF(0, (self.sourceDrawNode().height / 2) + 1)
+        self.sourcePoint = line.p1() + QtCore.QPointF(radius, sourceOffset)
         if self.dest:
-            self.destPoint = line.p2() - QtCore.QPointF(0, self.destDrawNode().height / 2)
-            self.destPoint += QtCore.QPointF(self.horizontalConnectionOffset, 0.0)
+            self.destPoint = line.p2() + QtCore.QPointF(-radius, destOffset)
         else:
             self.destPoint = line.p2()
 
@@ -600,21 +646,28 @@ class DrawEdge(QtGui.QGraphicsItem):
             self.ungrabMouse()
 
             # Hits?
-            nodes = [n for n in self.scene().items(self.floatingDestinationPoint) if type(n) == DrawNode]
+            nodes = [n for n in self.scene().items(self.floatingDestinationPoint) if type(n) in [DrawNodeInputNub, DrawNodeOutputNub]]
             if nodes:
                 topHitNode = nodes[0]
+
+                self.destPort = topHitNode.index
+
+
                 duplicatingConnection = self.sourceDrawNode().dagNode in self.scene().dag.nodeConnectionsIn(
-                    topHitNode.dagNode)
+                    topHitNode.parentItem().dagNode)
                 if topHitNode is not self.sourceDrawNode() and not duplicatingConnection:
                     # Connect an edge to a node
                     preSnap = self.scene().dag.snapshot(nodeMetaDict=self.scene().nodeMetaDict(),
                                                         connectionMetaDict=self.scene().connectionMetaDict())
 
-                    self.setDestDrawNode(topHitNode)
+                    self.setDestDrawNode(topHitNode.parentItem())
                     self.dest.addDrawEdge(self)
-                    self.horizontalConnectionOffset = (event.pos() - self.mapFromItem(self.dest, 0, 0)).x()
-                    self.scene().nodesConnected.emit(self.sourceDrawNode().dagNode, self.destDrawNode().dagNode)
+                    self.horizontalConnectionOffset = 0.0
+                    self.scene().nodesConnected.emit(self.sourceDrawNode().dagNode, self.destDrawNode().dagNode, self.sourcePort, self.destPort)
                     self.adjust()
+
+                    print 'connecting:', self.sourceDrawNode().dagNode, 'port:', self.sourcePort
+                    print 'to:', self.destDrawNode().dagNode, 'port:', self.destPort
 
                     currentSnap = self.scene().dag.snapshot(nodeMetaDict=self.scene().nodeMetaDict(),
                                                             connectionMetaDict=self.scene().connectionMetaDict())
@@ -684,7 +737,7 @@ class SceneWidget(QtGui.QGraphicsScene):
 
     # Signals
     nodesDisconnected = QtCore.Signal(depends_node.DagNode, depends_node.DagNode)
-    nodesConnected = QtCore.Signal(depends_node.DagNode, depends_node.DagNode)
+    nodesConnected = QtCore.Signal(depends_node.DagNode, depends_node.DagNode, int, int)
 
     def __init__(self, parent=None):
         """
@@ -773,7 +826,7 @@ class SceneWidget(QtGui.QGraphicsScene):
         return newNode
 
 
-    def addExistingConnection(self, fromDagNode, toDagNode):
+    def addExistingConnection(self, fromDagNode, toDagNode, sourcePort=0, destPort=0):
         """
         Adds a new draw edge for given from and to dag nodes.
         """
@@ -785,7 +838,7 @@ class SceneWidget(QtGui.QGraphicsScene):
         if not toDrawNode:
             raise RuntimeError(
                 "Attempting to connect node %s which is not yet registered to QGraphicsScene." % toDagNode.name)
-        newDrawEdge = DrawEdge(fromDrawNode, toDrawNode)
+        newDrawEdge = DrawEdge(fromDrawNode, toDrawNode, sourcePort=sourcePort, destPort=destPort)
         self.addItem(newDrawEdge)
         return newDrawEdge
 
@@ -893,7 +946,8 @@ class SceneWidget(QtGui.QGraphicsScene):
                 continue
             connectionString = "%s|%s" % (str(c.sourceDrawNode().dagNode.uuid), str(c.destDrawNode().dagNode.uuid))
             connectionMetaDict[connectionString] = dict()
-            connectionMetaDict[connectionString]['horizontalConnectionOffset'] = str(c.horizontalConnectionOffset)
+            connectionMetaDict[connectionString]['sourcePort'] = c.sourcePort
+            connectionMetaDict[connectionString]['destPort'] = c.destPort
         return connectionMetaDict
 
 
@@ -936,11 +990,12 @@ class SceneWidget(QtGui.QGraphicsScene):
             for connection in self.dag.connections():
                 connectionIdString = "%s|%s" % (str(connection[1].uuid), str(connection[0].uuid))
                 connectionMeta = expectedConnectionMeta[connectionIdString]
-                if 'horizontalConnectionOffset' in connectionMeta:
-                    # TODO: This code is a little verbose...
-                    drawEdge = self.drawEdge(self.drawNode(self.dag.node(nUUID=connection[1].uuid)),
-                                             self.drawNode(self.dag.node(nUUID=connection[0].uuid)))
-                    drawEdge.horizontalConnectionOffset = float(connectionMeta['horizontalConnectionOffset'])
+                drawEdge = self.drawEdge(self.drawNode(self.dag.node(nUUID=connection[1].uuid)),
+                                         self.drawNode(self.dag.node(nUUID=connection[0].uuid))
+                                         )
+                if drawEdge:
+                    drawEdge.sourcePort = connectionMeta['sourcePort']
+                    drawEdge.destPort = connectionMeta['destPort']
                     drawEdge.adjust()
 
 

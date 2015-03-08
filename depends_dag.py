@@ -37,10 +37,10 @@ class DAG:
     def __init__(self):
         # The dependency graph
         self.network = networkx.DiGraph()
-        
+
         # A dict of which nodes are currently in a stale state
         self.staleNodeDict = dict()
-        
+
         # A list of node group sets
         self.nodeGroupDict = dict()
 
@@ -76,7 +76,7 @@ class DAG:
         Return a list of all edges in the DAG.
         """
         return self.network.edges()
-    
+
 
     def nodeConnectionsIn(self, dagNode):
         """
@@ -93,7 +93,7 @@ class DAG:
         """
         return [edge[0] for edge in self.network.in_edges(dagNode)]
 
-    
+
     def addNode(self, dagNode, stale=False):
         """
         Adds a node to the DAG.  An optional stale setting is available.
@@ -136,7 +136,7 @@ class DAG:
         there is an issue.
         """
         if startNode not in self.network:
-            raise RuntimeError('Node %s does not exist in DAG.' % startNode.name)           
+            raise RuntimeError('Node %s does not exist in DAG.' % startNode.name)
         if endNode not in self.network:
             raise RuntimeError('Node %s does not exist in DAG.' % endNode.name)
         self.network.remove_edge(endNode, startNode)
@@ -147,14 +147,13 @@ class DAG:
         Set a node's stale state.
         """
         self.staleNodeDict[dagNode] = newState
-        
-        
+
+
     def nodeStaleState(self, dagNode):
         """
         Retrieve a node's stale state.
         """
         return self.staleNodeDict[dagNode]
-    
 
 
     def orderedNodeDependenciesAt(self, dagNode, includeGivenNode=True, onlyUnfulfilled=True, recursion=True):
@@ -181,9 +180,9 @@ class DAG:
                     continue
                 if recursion:
                     requiredDataPackets.append(p)
-            i += 1  
-        
-        # Return a list of in-order nodes, including the given node.
+            i += 1
+
+            # Return a list of in-order nodes, including the given node.
         inOrderNodes = list()
         for dp in reversed(requiredDataPackets):
             inOrderNodes.append(dp.sourceNode)
@@ -198,7 +197,7 @@ class DAG:
         Effectively a list of nodes this node can use as input.
         """
         return list(networkx.descendants(self.network, dagNode))
-    
+
 
     def allNodesAfter(self, dagNode):
         """
@@ -216,11 +215,12 @@ class DAG:
         # All the nodes that rely on this node, indirectly or directly
         directlyNeedyNodeList = list()
         for dagNode in self.allNodesAfter(dependingOnNode):
-            depends = self.orderedNodeDependenciesAt(dagNode, includeGivenNode=False, onlyUnfulfilled=False, recursion=recursion)
+            depends = self.orderedNodeDependenciesAt(dagNode, includeGivenNode=False, onlyUnfulfilled=False,
+                                                     recursion=recursion)
             if dependingOnNode in depends:
                 directlyNeedyNodeList.append(dagNode)
         return directlyNeedyNodeList
-        
+
 
     def nodeOutputType(self, dagNode, output):
         """
@@ -237,10 +237,11 @@ class DAG:
         dagNode and which of its outputs is connected to the input.
         """
         inputString = dagNode.inputValue(input.name)
-        (connectedNode, connectedNodeOutput) = depends_data_packet.nodeAndOutputFromScenegraphLocationString(inputString, self)
+        (connectedNode, connectedNodeOutput) = depends_data_packet.nodeAndOutputFromScenegraphLocationString(
+            inputString, self)
         return (connectedNode, connectedNodeOutput)
-    
-    
+
+
     def nodeOutputGoesTo(self, dagNode, output):
         """
         Given a node and one of its outputs, return a list of tuples containing
@@ -263,15 +264,15 @@ class DAG:
         """
         (outputNode, output) = self.nodeInputComesFromNode(dagNode, input)
         return self.nodeOutputDataPacket(outputNode, output)
-    
-    
+
+
     def nodeOutputDataPacket(self, dagNode, output):
         """
         Given a node and its output, return the DataPacket coming out of it.
         """
         if dagNode is None:
             return None
-        
+
         # Retrieve specialized output types
         specializationDict = dict()
         for output in dagNode.outputs():
@@ -289,16 +290,16 @@ class DAG:
         """
         foo = self.nodeOrderedDataPackets(dagNode, onlyFulfilled=True)
         return dagNode.inputRequirementsFulfilled(foo)
-    
-    
+
+
     def nodeAllInputsConnected(self, dagNode):
         """
         Returns a boolean stating whether this node has all of its required inputs connected.
         """
         foo = self.nodeOrderedDataPackets(dagNode)
         return dagNode.inputRequirementsFulfilled(foo)
-    
-    
+
+
     def safeNodeName(self, nodeName):
         """
         Given a node name suggestion, returns a safe version of it that will work in this DAG.
@@ -311,7 +312,7 @@ class DAG:
                 localName = localName + '1'
                 continue
             prefix, version = re.match(r"(.*[^\d]+)([\d]+)$", localName).groups()
-            localName = prefix + str(int(version)+1).rjust(len(version), '0')
+            localName = prefix + str(int(version) + 1).rjust(len(version), '0')
         return localName
 
 
@@ -328,8 +329,8 @@ class DAG:
         if name in self.nodeGroupDict:
             raise RuntimeError("NodeGroup named %s already exists in DAG group dict." % name)
         self.nodeGroupDict[name] = set(nodeListToGroup)
-    
-    
+
+
     def removeNodeGroup(self, nameToRemove=None, nodeListToRemove=None):
         """
         Remove an entire node group specified by either its name or the list of
@@ -347,7 +348,7 @@ class DAG:
                 if self.nodeGroupDict[key] == nodeSetToRemove:
                     del self.nodeGroupDict[key]
                     break
-        
+
 
     def nodeGroupName(self, nodeListToQuery):
         """
@@ -359,8 +360,8 @@ class DAG:
         for key in self.nodeGroupDict:
             if self.nodeGroupDict[key] == nodeSetToQuery:
                 return key
-        
-    
+
+
     def nodeGroupCount(self, dagNode):
         """
         Returns whether the given node is a member of any group in the DAG.
@@ -380,7 +381,7 @@ class DAG:
             if dagNode in self.nodeGroupDict[key]:
                 return key
         return None
-        
+
 
     def groupIndicesInExecutionList(self, groupNodeList, executionList):
         """
@@ -397,7 +398,7 @@ class DAG:
                 startIndex = i
                 tracking = True
             if tracking and executionList[i] not in groupNodeSet:
-                endIndex = i-1
+                endIndex = i - 1
                 tracking = False
                 break
         return (startIndex, endIndex)
@@ -412,33 +413,38 @@ class DAG:
         """
         nodes = list()
         for dagNode in self.nodes():
-            nodes.append({"NAME":copy.deepcopy(dagNode.name),
-                          "TYPE":type(dagNode).__name__,
-                          "UUID":str(dagNode.uuid),
-                          "STALE":str(self.staleNodeDict[dagNode]),
-                          "INPUTS":[{"NAME":copy.deepcopy(x.name), "VALUE":copy.deepcopy(x.value), "RANGE":copy.deepcopy(x.seqRange)} for x in dagNode.inputs()],
-                          "OUTPUTS":[{"NAME":copy.deepcopy(x.name), "VALUE":copy.deepcopy(x.value), "RANGE":copy.deepcopy(x.seqRange)} for x in dagNode.outputs()],
-                          "ATTRIBUTES":[{"NAME":copy.deepcopy(x.name), "VALUE":copy.deepcopy(x.value), "RANGE":copy.deepcopy(x.seqRange)} for x in dagNode.attributes()] })
-        
+            nodes.append({"NAME": copy.deepcopy(dagNode.name),
+                          "TYPE": type(dagNode).__name__,
+                          "UUID": str(dagNode.uuid),
+                          "STALE": str(self.staleNodeDict[dagNode]),
+                          "INPUTS": [{"NAME": copy.deepcopy(x.name), "VALUE": copy.deepcopy(x.value),
+                                      "RANGE": copy.deepcopy(x.seqRange)} for x in dagNode.inputs()],
+                          "OUTPUTS": [{"NAME": copy.deepcopy(x.name), "VALUE": copy.deepcopy(x.value),
+                                       "RANGE": copy.deepcopy(x.seqRange)} for x in dagNode.outputs()],
+                          "ATTRIBUTES": [{"NAME": copy.deepcopy(x.name), "VALUE": copy.deepcopy(x.value),
+                                          "RANGE": copy.deepcopy(x.seqRange)} for x in dagNode.attributes()]})
+
         edges = list()
         for connection in sorted(self.network.edges()):
-            edges.append({"FROM":str(connection[1].uuid),
-                          "TO":str(connection[0].uuid)})
-        
+            edges.append({"FROM": str(connection[1].uuid),
+                          "TO": str(connection[0].uuid),
+                          }
+            )
+
         groups = list()
         for key in self.nodeGroupDict:
-            groups.append({"NAME":copy.deepcopy(key),
-                           "NODES":[str(x.uuid) for x in self.nodeGroupDict[key]]})
-        
-        snapshotDict = {"CONNECTION_META":connectionMetaDict,
-                        "EDGES":edges,
-                        "NODES":nodes,
-                        "GROUPS":groups,
-                        "NODE_META":nodeMetaDict,
-                        "VARIABLE_SUBSTITIONS":variableMetaList}
+            groups.append({"NAME": copy.deepcopy(key),
+                           "NODES": [str(x.uuid) for x in self.nodeGroupDict[key]]})
+
+        snapshotDict = {"CONNECTION_META": connectionMetaDict,
+                        "EDGES": edges,
+                        "NODES": nodes,
+                        "GROUPS": groups,
+                        "NODE_META": nodeMetaDict,
+                        "VARIABLE_SUBSTITIONS": variableMetaList}
         return snapshotDict
-    
-    
+
+
     def restoreSnapshot(self, snapshotDict):
         """
         Transfers the given JSON snapshot into the current dict.
@@ -447,7 +453,7 @@ class DAG:
         self.network.clear()
         self.staleNodeDict.clear()
         self.nodeGroupDict.clear()
-        
+
         # Loads of nodes
         for n in snapshotDict["NODES"]:
             nodeType = n["TYPE"]
@@ -467,13 +473,13 @@ class DAG:
                 newNode.setAttributeValue(a["NAME"], a["VALUE"])
                 newNode.setAttributeRange(a["NAME"], a["RANGE"])
             self.addNode(newNode, stale)
-            
+
         # Edge loads
         for e in snapshotDict["EDGES"]:
             fromNode = self.node(nUUID=uuid.UUID(e["FROM"]))
             toNode = self.node(nUUID=uuid.UUID(e["TO"]))
             self.connectNodes(fromNode, toNode)
-        
+
         # Group loads
         for g in snapshotDict["GROUPS"]:
             self.nodeGroupDict[g["NAME"]] = set([self.node(nUUID=uuid.UUID(ns)) for ns in g["NODES"]])
