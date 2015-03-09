@@ -432,7 +432,7 @@ class MainWindow(QtGui.QMainWindow):
         """
         print 'connecting nodes', fromDagNode, toDagNode
         print 'ports', sourcePort, destPort
-        self.dag.connectNodes(fromDagNode, toDagNode, start_port=sourcePort, end_port=destPort )
+        self.dag.connectNodes(fromDagNode, toDagNode, sourcePort=sourcePort, destPort=destPort )
 
 
     def propertyEdited(self, dagNode, propName, newValue, propertyType=None):
@@ -870,8 +870,9 @@ class MainWindow(QtGui.QMainWindow):
             splitOperationFlag = True if self.dag.nodeGroupCount(dagNode) else False
             #commandList = dagNode.executeList(dataPacketDict, splitOperations=splitOperationFlag)
 
-            nodesBefore = self.dag.nodeConnectionsIn(dagNode)
-            commandList = dagNode.executePython(nodesBefore)
+            nodesBefore = self.dag.nodeConnectionsByPort(dagNode)
+            dagNode.setPortValues(nodesBefore)
+            commandList = dagNode.executePython()
             executionList.append((dagNode.name, commandList))
             
         print executionList

@@ -186,7 +186,6 @@ class DrawNode(QtGui.QGraphicsItem):
             self.inNubs.append(nub)
         print self.inNubs
 
-
         self.outNubs = []
         for count, output in enumerate(dagNode.outputs()):
             nub = DrawNodeOutputNub(index=count, name=output.name)
@@ -969,7 +968,7 @@ class SceneWidget(QtGui.QGraphicsScene):
             if selectedItems and dagNode in [x.dagNode for x in selectedItems]:
                 newNode.setSelected(True)
         for connection in self.dag.connections():
-            newDrawEdge = self.addExistingConnection(connection[1], connection[0])
+            newDrawEdge = self.addExistingConnection(connection[0], connection[1])
         self.blockSignals(False)
 
         # DrawNodes get their locations set from this meta entry
@@ -988,10 +987,10 @@ class SceneWidget(QtGui.QGraphicsScene):
         expectedConnectionMeta = snapshotDict["CONNECTION_META"]
         if expectedConnectionMeta:
             for connection in self.dag.connections():
-                connectionIdString = "%s|%s" % (str(connection[1].uuid), str(connection[0].uuid))
+                connectionIdString = "%s|%s" % (str(connection[0].uuid), str(connection[1].uuid))
                 connectionMeta = expectedConnectionMeta[connectionIdString]
-                drawEdge = self.drawEdge(self.drawNode(self.dag.node(nUUID=connection[1].uuid)),
-                                         self.drawNode(self.dag.node(nUUID=connection[0].uuid))
+                drawEdge = self.drawEdge(self.drawNode(self.dag.node(nUUID=connection[0].uuid)),
+                                         self.drawNode(self.dag.node(nUUID=connection[1].uuid))
                                          )
                 if drawEdge:
                     drawEdge.sourcePort = connectionMeta['sourcePort']

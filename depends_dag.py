@@ -86,6 +86,24 @@ class DAG:
         return [edge[1] for edge in self.network.out_edges(dagNode)]
 
 
+    def nodeConnectionsByPort(self, dagNode):
+        """
+        Return a dict of all the edges going 'in' to a node.
+        Sorted by port
+        """
+        connDict = {}
+
+        for edge in self.network.in_edges(dagNode):
+            # grab the source of this edge
+            destPort = self.network.edge[edge[0]][dagNode]['destPort']
+           #print destPort, dagNode.inputs()[destPort].name
+            if destPort in connDict:
+                connDict[destPort].append(edge[0])
+            else:
+                connDict[destPort] = [edge[0]]
+        return connDict
+
+
     def nodeConnectionsOut(self, dagNode):
         """
         Return a list of all the edges leaving a node.
@@ -114,7 +132,7 @@ class DAG:
         self.staleNodeDict.pop(dagNode, None)
 
 
-    def connectNodes(self, startNode, endNode):
+    def connectNodes(self, startNode, endNode, sourcePort=0, destPort=0):
         """
         Attempts to connect two nodes in the DAG.  Raises an exeption if
         there is an issue.
@@ -125,7 +143,8 @@ class DAG:
             raise RuntimeError('Node %s does not exist in DAG.' % endNode.name)
         if startNode in self.nodeConnectionsIn(endNode):
             raise RuntimeError("Attempting to duplicate outgoing connection.")
-        self.network.add_edge(endNode, startNode)
+        self.network.add_edge(startNode, endNode, sourcePort=sourcePort, destPort=destPort)
+
         if not networkx.is_directed_acyclic_graph(self.network):
             raise RuntimeError('The directed graph is nolonger acyclic!')
 
@@ -196,7 +215,7 @@ class DAG:
         Return a list of all nodes "before" the given node in the DAG.
         Effectively a list of nodes this node can use as input.
         """
-        return list(networkx.descendants(self.network, dagNode))
+        return list(networkx.ancestors(self.network, dagNode))
 
 
     def allNodesAfter(self, dagNode):
@@ -204,7 +223,7 @@ class DAG:
         Return a list of all nodes "after" the given node in the DAG.
         Effectively a list of nodes that might rely on this node for input.
         """
-        return list(networkx.ancestors(self.network, dagNode))
+        return list(networkx.descendants(self.network, dagNode))
 
 
     def allNodesDependingOnNode(self, dependingOnNode, recursion=True):
@@ -426,8 +445,8 @@ class DAG:
 
         edges = list()
         for connection in sorted(self.network.edges()):
-            edges.append({"FROM": str(connection[1].uuid),
-                          "TO": str(connection[0].uuid),
+            edges.append({"FROM": str(connection[0].uuid),
+                          "TO": str(connection[1].uuid),
                           }
             )
 
@@ -478,7 +497,16 @@ class DAG:
         for e in snapshotDict["EDGES"]:
             fromNode = self.node(nUUID=uuid.UUID(e["FROM"]))
             toNode = self.node(nUUID=uuid.UUID(e["TO"]))
-            self.connectNodes(fromNode, toNode)
+            sourcePort = 0
+            destPort = 0
+
+            connectionIdString = "%s|%s" % (e["FROM"], e["TO"])
+            if connectionIdString in snapshotDict['CONNECTION_META']:
+                c = snapshotDict['CONNECTION_META'][connectionIdString]
+                sourcePort = c['sourcePort']
+                destPort = c['destPort']
+
+            self.connectNodes(fromNode, toNode, sourcePort=sourcePort, destPort=destPort)
 
         # Group loads
         for g in snapshotDict["GROUPS"]:

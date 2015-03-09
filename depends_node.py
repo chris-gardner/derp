@@ -7,6 +7,7 @@
 import re
 import copy
 import uuid
+from collections import OrderedDict
 
 import depends_util
 import depends_variables
@@ -58,6 +59,7 @@ class DagNodeInput(object):
     a flag denoting if it's required or not, a name, and documentation.
     """
 
+
     def __init__(self, name, dataType='', required=True, docString=None):
         """
         """
@@ -70,6 +72,8 @@ class DagNodeInput(object):
         self.dataType = dataType
         self.required = required
     
+    def __repr__(self):
+        return "<DagNodeInput: %s - datatype: %s>" % (self.name, self.dataType)
 
     # TODO: Should my dictionary keys be more interesting?
     def __hash__(self):
@@ -157,9 +161,10 @@ class DagNode(object):
         """
         """
         self.setName(name)
-        self._properties = dict()
+        self._properties = OrderedDict()
         self.outVal = None
         self.uuid = nUUID if nUUID else uuid.uuid4()
+        self._portValues = dict()
 
         # Give the inputs, outputs, and attributes a place to live in the storage dict
         for input in self._defineInputs():
@@ -225,6 +230,34 @@ class DagNode(object):
         OUTPUT_ATTR_PREFIX = "OUTPUT"
         return OUTPUT_ATTR_PREFIX+"@"+outputName
 
+
+    def setPortValues(self, inDict={}):
+        print 'setPortValues'
+        print 'inDict:', inDict
+
+        self._portValues = dict()
+        for index, input in enumerate(self.inputs()):
+
+            print input
+            if not index in self._portValues:
+                self._portValues[index] = []
+
+
+            if index in inDict:
+                for node in inDict[index]:
+                    print node
+                    self._portValues[index].append(node.outVal)
+
+
+        print self._portValues
+        return self._portValues
+
+    def getPortValues(self, portName):
+        print 'getPortValues'
+        print self._portValues
+        if portName in self._portValues:
+            return self._portValues[portName]
+        return None
 
     ###########################################################################
     ## Input functions
@@ -527,7 +560,6 @@ class DagNode(object):
         """
         return [
             DagNodeInput('input1', 'string', None),
-            DagNodeInput('input2', 'string', None),
             ]
     
     
@@ -537,8 +569,6 @@ class DagNode(object):
         """
         return [
             DagNodeOutput('output1', 'string', None),
-            DagNodeOutput('output2', 'string', None),
-            DagNodeOutput('output3', 'string', None),
             ]
     
     
@@ -560,14 +590,10 @@ class DagNode(object):
         """
         return list()
 
-    def executePython(self, nodesBefore):
+    def executePython(self):
         print ' execute python '.center(80, '-')
         print self
 
-        print 'nodes before:'.center(60, '*')
-        for x in nodesBefore:
-            print x
-            print x.outVal
 
         print 'inputs:'.center(60, '*')
         for x in self.inputs():
