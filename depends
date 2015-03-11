@@ -91,9 +91,6 @@ if __name__ == "__main__":
                 print "Warning: Variable %s specified in 'vsub' argument does not exist in this workflow." % variable
         mainWindow.variableWidget.rebuild(depends_variables.variableSubstitutions)
 
-    # "Check" the requested recipe in the MainWindow UI.
-    if options.recipe:
-        mainWindow.setActiveOutputRecipe(options.recipe)
 
     # Show the UI
     if not options.nogui:

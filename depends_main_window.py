@@ -112,7 +112,6 @@ class MainWindow(QtGui.QMainWindow):
         executeMenu.addAction(QtGui.QAction("Execute &Selected Node", self, shortcut= "Ctrl+Shift+E", triggered=lambda: self.executeSelected(executeImmediately=True)))
         recipeMenu = executeMenu.addMenu("&Output Recipe")
         executeMenu.addSeparator()
-        executeMenu.addAction(QtGui.QAction("W&ipe stale status", self, shortcut= "Ctrl+W", triggered=self.clearStaleStatus))
         executeMenu.addAction(QtGui.QAction("Version &Up outputs", self, shortcut= "Ctrl+U", triggered=self.versionUpSelectedOutputFilenames))
         #executeMenu.addAction(QtGui.QAction("&Test Menu Item", self, shortcut= "Ctrl+T", triggered=self.testMenuItem))
         executeMenu.addSeparator()
@@ -287,6 +286,7 @@ class MainWindow(QtGui.QMainWindow):
         drawNode = self.graphicsScene.drawNode(newDagNode)
         self.selectNode(drawNode)
 
+
     def deleteNodes(self, dagNodesToDelete):
         """
         Delete an existing dag node and its edges, and make sure the QGraphicsScene cleans up as well.
@@ -401,7 +401,6 @@ class MainWindow(QtGui.QMainWindow):
                     dagNode.setOutputValue(output.name, soName, updatedValue)
                     self.dag.setNodeStale(dagNode, False)
                     nodesAffected = nodesAffected + self.dagNodeOutputChanged(dagNode, dagNode.outputNamed(output.name))
-            nodesAffected = nodesAffected + self.dagSetChildrenStale(dagNode)
 
         currentSnap = self.dag.snapshot(nodeMetaDict=self.graphicsScene.nodeMetaDict(), connectionMetaDict=self.graphicsScene.connectionMetaDict())
         self.undoStack.push(depends_undo_commands.DagAndSceneUndoCommand(preSnap, currentSnap, self.dag, self.graphicsScene))
@@ -710,19 +709,6 @@ class MainWindow(QtGui.QMainWindow):
         return (list(set(singleDollarList)), list(set(doubleDollarList)))
 
 
-    def dagSetChildrenStale(self, dagNodeChanged):
-        """
-        Given a dag node that has changed, mark all its children that have data
-        present to be 'stale'.
-        """
-        nodesAffected = list()
-        allAffectedNodes = self.dag.allNodesDependingOnNode(dagNodeChanged)
-        for affectedDagNode in allAffectedNodes:
-            for output in affectedDagNode.outputs():
-                if self.dag.nodeOutputDataPacket(affectedDagNode, output).dataPresent():
-                    self.dag.setNodeStale(affectedDagNode, True)
-                    nodesAffected.append(affectedDagNode)
-        return nodesAffected
         
 
     def dagNodesSanityCheck(self, dagNodes):
@@ -1135,93 +1121,5 @@ class MainWindow(QtGui.QMainWindow):
             actionList.append(menuAction)
         return actionList
     
-
-    def setActiveOutputRecipe(self, recipeName):
-        """
-        Sets the output recipe to one of the valid ones, based on a given name.
-        """
-        for action in self.recipeQActionGroup.actions():
-            if action.text() == recipeName:
-                action.setChecked(True)
-                return
-        raise RuntimeError("No output recipe named %s exists." % recipeName)
-
-
-    def activeOutputRecipe(self):
-        """
-        Returns an output recipe object for the currently-active output recipe
-        in the menuing system.
-        """
-        return self.recipeQActionGroup.checkedAction().data()()
-        
-
-    def createRecipeMenuItems(self):
-        """
-        Creates the recipe menu actions from the recipe plugin directory.
-        """
-        actionList = list()
-        for tipe in depends_output_recipe.outputRecipeTypes():
-            menuAction = QtGui.QAction(tipe().name(), self)
-            menuAction.setData(tipe)
-            actionList.append(menuAction)
-        return actionList
-    
-    
-    def clearStaleStatus(self):
-        """
-        Clears the stale status for all selected dag nodes.
-        """
-        dagNodes = self.selectedDagNodes()
-        for node in dagNodes:
-            self.dag.setNodeStale(node, False)
-        self.graphicsScene.refreshDrawNodes(dagNodes)
-        
-    
-    def testMenuItem(self):
-        """
-        You can do whatever you want in here!
-        """
-        #selectedDrawNodes = self.graphicsScene.selectedItems()
-        #if len(selectedDrawNodes) > 1 or not selectedDrawNodes:
-        #   return
-        #an = self.dag.allNodesDependingOnNode(selectedDrawNodes[0].dagNode, recursion=False)
-        #an = self.dag.allNodesAfter(selectedDrawNodes[0].dagNode)
-        #an = self.dag.nodeOutputGoesTo(selectedDrawNodes[0].dagNode, selectedDrawNodes[0].dagNode.outputs()[0])
-        #for n in an:
-        #   print n
-        #   #print n[1].name
-        #self.save('/tmp/foo.json')
-        #self.open('/tmp/foo.json')
-        #self.yesNoDialog("FOOBar")
-        
-        #print depends_util.nextFilenameVersion('/tmp/foo.bar.000.tif')
-        #print depends_util.nextFilenameVersion('/tmp/foobar_v001.tif')
-        #print depends_util.nextFilenameVersion('/tmp/foo.bar.001')     # "Fails" - but what does one expect?
-        #print depends_util.nextFilenameVersion('/tmp/foobar001')
-        #print depends_util.nextFilenameVersion('foo.bar.001.tif')
-        #print depends_util.nextFilenameVersion('foobar001')
-        #print depends_util.nextFilenameVersion('/tmp/foobar_v015.tif')
-        #print depends_util.nextFilenameVersion('/home/gardner/devDag/june01.json')
-        #print depends_util.nextFilenameVersion("/tmp/foo.####.tif")
-        #print depends_util.nextFilenameVersion("/tmp/foo005.####.tif")
-        #print depends_util.nextFilenameVersion("/tmp/foo####.tif")
-        #print depends_util.nextFilenameVersion("/tmp/foov002_####.tif")
-        #print depends_util.nextFilenameVersion("/tmp/foo.bar####.tif")
-        #print depends_util.nextFilenameVersion("/tmp/foo.003.####.tif")
-        #print depends_util.nextFilenameVersion("/tmp/foo.003.####.####.tif")
-        
-        #print depends_variables.present('/$FOO/$HI/BOOBER/$$SRC_ROOT.$FOO')
-        #selectedDrawNodes = self.graphicsScene.selectedItems()
-        #if selectedDrawNodes:
-        #   executeNode = selectedDrawNodes[0].dagNode
-        #depends_util.dagSnapshotDiff(self.undoStack.command(0).oldSnap, self.undoStack.command(0).newSnap)
-
-        #self.dag.addNodeGroup([self.dag.node(name="Image_Transform"), 
-        #                      self.dag.node(name="Image_Transform_Dupe")])
-        #print self.dag.nodeGroupList
-        
-        #print self.dag.nodeInGroupNamed(self.selectedDagNodes()[0])
-
-        print self.dagNodeVariablesUsed(self.selectedDagNodes()[0])
 
 

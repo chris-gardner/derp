@@ -878,33 +878,7 @@ class SceneWidget(QtGui.QGraphicsScene):
             drawNode.update()
 
 
-    def setHighlightNodes(self, drawNodes, intensities=None):
-        """
-        Set which nodes are highlighted by giving a list of drawNodes and an
-        optional list of intensities.
-        """
-        self.highlightIntensities = intensities
-        oldHighlightNodes = self.highlightNodes
-        self.highlightNodes = drawNodes
-        for drawNode in drawNodes + oldHighlightNodes:
-            drawNode.update()
 
-
-    def setCascadingHighlightNodesFromOrderedDependencies(self, dagNodeOrigin):
-        """
-        Recover a list of ordered dependencies for a given dag node, and 
-        highlight each of the nodes it depends on.
-        """
-        highlightDrawNodesDarkToLight = [self.drawNode(n) for n in
-                                         self.dag.orderedNodeDependenciesAt(dagNodeOrigin, onlyUnfulfilled=False)]
-        intensities = list()
-        nodeCount = len(highlightDrawNodesDarkToLight)
-        if nodeCount > 1:
-            for i in range(nodeCount):
-                intensities.append(0.65 + (0.35 * float(i) / float(nodeCount - 1)))
-        else:
-            intensities = [1.0]
-        self.setHighlightNodes(highlightDrawNodesDarkToLight, intensities)
 
 
     def mousePressEvent(self, event):
