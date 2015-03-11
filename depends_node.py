@@ -725,28 +725,5 @@ def loadChildNodesFromPaths(pathList):
             globals()[nc] = nodeClassDict[nc]
 
 
-###############################################################################
-## Built-in nodes
-###############################################################################
-
-class DagNodeDot(DagNode):
-    """
-    A dot node is a node that simply collects connections and passes them on.
-    It's mostly for the benefit of the user interface.
-    """
-    # TODO
-    def __init__(self, name=""):
-        self.category = 'Utility'
-        DagNode.__init__(self, name)
-
-    def _defineAttributes(self):
-        return []
-
-    def executeList(self, dataPacketDict):
-        pass
-
-    def executePython(self, nodesBefore):
-        if nodesBefore:
-            self.outVal = nodesBefore[0].outVal
 
 

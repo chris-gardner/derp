@@ -158,7 +158,10 @@ class DAG:
             raise RuntimeError('Node %s does not exist in DAG.' % startNode.name)
         if endNode not in self.network:
             raise RuntimeError('Node %s does not exist in DAG.' % endNode.name)
-        self.network.remove_edge(endNode, startNode)
+        try:
+            self.network.remove_edge(endNode, startNode)
+        except:
+            pass
 
 
     def setNodeStale(self, dagNode, newState):

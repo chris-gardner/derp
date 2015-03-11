@@ -52,7 +52,7 @@ class GeneralEdit(QtGui.QWidget):
         self.lineEdit = QtGui.QLineEdit(self)
         self.lineEdit.setMinimumWidth(150)
         self.lineEdit.setFixedHeight(25)
-        self.lineEdit.setAlignment(QtCore.Qt.AlignRight)
+        self.lineEdit.setAlignment(QtCore.Qt.AlignLeft)
         self.lineEdit.setEnabled(enabled)
         self.setValue(value)
 
@@ -556,21 +556,7 @@ class PropWidget(QtGui.QWidget):
         self.scrollAreaLayout.addWidget(nameWidget)
         self.scrollAreaLayout.addWidget(GeneralEdit("Type", self.dagNode.typeStr(), enabled=False, isFileType=False, parent=self))
 
-        # Add the inputs
-        if self.dagNode.inputs():
-            inputGroup = QtGui.QGroupBox("Inputs")
-            inputLayout = QtGui.QVBoxLayout()
-            for input in self.dagNode.inputs():
-                newThing = InputEdit(input=input, dagNode=self.dagNode, dag=dag, parent=inputGroup)
-                newThing.mouseover.connect(self.mouseover)
-                newThing.setValue(self.dagNode.inputValue(input.name, variableSubstitution=False))
-                newThing.setRange(self.dagNode.inputRange(input.name, variableSubstitution=False))
-                inputLayout.addWidget(newThing)
-                newThing.valueChanged.connect(attrChangedLambda)
-                newThing.rangeChanged.connect(rangeChangedLambda)
-            inputGroup.setLayout(inputLayout)
-            self.scrollAreaLayout.addWidget(inputGroup)
-        
+
         # Add the attributes (don't show any attributes that begin with input/output keywords)
         if self.dagNode.attributes():
             attributeGroup = QtGui.QGroupBox("Attributes")
@@ -585,17 +571,6 @@ class PropWidget(QtGui.QWidget):
             attributeGroup.setLayout(attributeLayout)
             self.scrollAreaLayout.addWidget(attributeGroup)
         
-        # Add the outputs
-        if self.dagNode.outputs():
-            outputGroup = QtGui.QGroupBox("Outputs")
-            outputLayout = QtGui.QVBoxLayout()
-            for output in self.dagNode.outputs():
-                newThing = OutputEdit(output=output, dagNode=self.dagNode, dag=dag, parent=outputGroup)
-                outputLayout.addWidget(newThing)
-                newThing.valueChanged.connect(attrChangedLambda)
-                newThing.rangeChanged.connect(rangeChangedLambda)
-            outputGroup.setLayout(outputLayout)
-            self.scrollAreaLayout.addWidget(outputGroup)
 
 
     def refresh(self):

@@ -99,7 +99,9 @@ class MainWindow(QtGui.QMainWindow):
         editMenu.addAction(undoAction)
         editMenu.addAction(redoAction)
         editMenu.addSeparator()
-        createMenu = editMenu.addMenu("&Create Node")
+
+
+        createMenu = self.menuBar().addMenu("&Nodes")
         editMenu.addAction(QtGui.QAction("&Delete Node(s)", self, shortcut="Delete", triggered=self.deleteSelectedNodes))
         editMenu.addAction(QtGui.QAction("&Shake Node(s)", self, shortcut="Backspace", triggered=self.shakeSelectedNodes))
         editMenu.addAction(QtGui.QAction("D&uplicate Node", self, shortcut="Ctrl+D", triggered=self.duplicateSelectedNodes))
@@ -126,14 +128,24 @@ class MainWindow(QtGui.QMainWindow):
         # Setup the variables, load the plugins, and auto-generate the read dag nodes
         self.setupStartupVariables()
         depends_node.loadChildNodesFromPaths(depends_variables.value('NODE_PATH').split(':'))
-        depends_data_packet.loadChildDataPacketsFromPaths(depends_variables.value('DATA_PACKET_PATH').split(':'))
-        depends_output_recipe.loadChildRecipesFromPaths(depends_variables.value('OUTPUT_RECIPE_PATH').split(':'))
-        depends_file_dialog.loadChildFileDialogsFromPaths(depends_variables.value('FILE_DIALOG_PATH').split(':'))
         depends_node.generateReadDagNodes()
 
         # Generate the Create menu.  Must be done after plugins are loaded.
-        for action in self.createCreateMenuActions():
-            createMenu.addAction(action)
+        menuActions = self.createCreateMenuActions()
+        for action in menuActions:
+            cat = None
+            for eAct in createMenu.actions():
+                if eAct.menu():
+                    if eAct.text() == action.category:
+                        cat = eAct.menu()
+                        break
+
+            if not cat:
+                cat = QtGui.QMenu(createMenu)
+                cat.setTitle(action.category)
+                createMenu.addMenu(cat)
+
+            cat.addAction(action)
 
 
         # Load the starting filename or create a new DAG
@@ -160,7 +172,6 @@ class MainWindow(QtGui.QMainWindow):
         self.graphicsScene.nodesDisconnected.connect(self.nodesDisconnected)
         self.graphicsScene.nodesConnected.connect(self.nodesConnected)
         self.propWidget.attrChanged.connect(self.propertyEdited)
-        self.propWidget.rangeChanged.connect(self.propertyRangeEdited)
         self.propWidget.mouseover.connect(self.highlightDagNodes)
         self.variableWidget.addVariable.connect(depends_variables.add)
         self.variableWidget.setVariable.connect(depends_variables.setx)
@@ -197,6 +208,13 @@ class MainWindow(QtGui.QMainWindow):
         return [sdn.dagNode for sdn in selectedDrawNodes]
 
 
+    def clearSelection(self):
+        selectedDrawNodes = self.graphicsScene.selectedItems()
+        for dagNode in selectedDrawNodes:
+            dagNode.setSelected(False)
+        self.selectionChanged()
+
+
     def setupStartupVariables(self):
         """
         Each program starts with a set of workflow variables that are defined
@@ -213,27 +231,6 @@ class MainWindow(QtGui.QMainWindow):
             depends_variables.setx('NODE_PATH', os.path.join(depends_variables.value('DEPENDS_DIR'), 'nodes'), readOnly=True)
         else:
             depends_variables.setx('NODE_PATH', os.environ.get('DEPENDS_NODE_PATH'), readOnly=True)
-
-        # ...And a path that points to where the DataPackets come from
-        depends_variables.add('DATA_PACKET_PATH')
-        if not os.environ.get('DEPENDS_DATA_PACKET_PATH'):
-            depends_variables.setx('DATA_PACKET_PATH', os.path.join(depends_variables.value('DEPENDS_DIR'), 'data_packets'), readOnly=True)
-        else:
-            depends_variables.setx('DATA_PACKET_PATH', os.environ.get('DEPENDS_DATA_PACKET_PATH'), readOnly=True)
-        
-        # ...And a path that points to where the Output Recipes come from
-        depends_variables.add('OUTPUT_RECIPE_PATH')
-        if not os.environ.get('DEPENDS_OUTPUT_RECIPE_PATH'):
-            depends_variables.setx('OUTPUT_RECIPE_PATH', os.path.join(depends_variables.value('DEPENDS_DIR'), 'output_recipes'), readOnly=True)
-        else:
-            depends_variables.setx('OUTPUT_RECIPE_PATH', os.environ.get('DEPENDS_OUTPUT_RECIPE_PATH'), readOnly=True)
-
-        # ...And a path that points to where the File Dialogs come from
-        depends_variables.add('FILE_DIALOG_PATH')
-        if not os.environ.get('DEPENDS_FILE_DIALOG_PATH'):
-            depends_variables.setx('FILE_DIALOG_PATH', os.path.join(depends_variables.value('DEPENDS_DIR'), 'file_dialogs'), readOnly=True)
-        else:
-            depends_variables.setx('FILE_DIALOG_PATH', os.environ.get('DEPENDS_FILE_DIALOG_PATH'), readOnly=True)
 
         
     def clearVariableDictionary(self):
@@ -286,6 +283,9 @@ class MainWindow(QtGui.QMainWindow):
         currentSnap = self.dag.snapshot(nodeMetaDict=self.graphicsScene.nodeMetaDict(), connectionMetaDict=self.graphicsScene.connectionMetaDict())
         self.undoStack.push(depends_undo_commands.DagAndSceneUndoCommand(preSnap, currentSnap, self.dag, self.graphicsScene))
 
+        self.clearSelection()
+        drawNode = self.graphicsScene.drawNode(newDagNode)
+        self.selectNode(drawNode)
 
     def deleteNodes(self, dagNodesToDelete):
         """
@@ -472,12 +472,7 @@ class MainWindow(QtGui.QMainWindow):
                     nodesAffected = nodesAffected + [dagNode]
                     somethingChanged = True
                 
-        # Stales aren't changed when the value doesn't change
-        if somethingChanged:
-            # Stale refers to a node's data on-disk, if an affected node is 
-            # downstream from a modified node and it already has data, it is marked stale.
-            nodesAffected = nodesAffected + self.dagSetChildrenStale(dagNode)
-        
+
         # Undos aren't registered when the value doesn't actually change
         if somethingChanged:
             currentSnap = self.dag.snapshot(nodeMetaDict=self.graphicsScene.nodeMetaDict(), connectionMetaDict=self.graphicsScene.connectionMetaDict())
@@ -551,6 +546,15 @@ class MainWindow(QtGui.QMainWindow):
             #   dagNode.setAttribute(key, list(filename))
             #   print "SUCCESS"
             #   break
+
+
+    def selectNode(self, dagNode):
+        """
+        Select a node
+        """
+        dagNode.setSelected(True)
+        self.selectionChanged()
+        return dagNode
 
 
     def selectionRefresh(self):
@@ -1219,3 +1223,5 @@ class MainWindow(QtGui.QMainWindow):
         #print self.dag.nodeInGroupNamed(self.selectedDagNodes()[0])
 
         print self.dagNodeVariablesUsed(self.selectedDagNodes()[0])
+
+
