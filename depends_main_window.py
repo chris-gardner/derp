@@ -17,8 +17,6 @@ import depends_node
 import depends_util
 import depends_variables
 import depends_data_packet
-import depends_file_dialog
-import depends_output_recipe
 import depends_undo_commands
 import depends_property_widget
 import depends_variable_widget
@@ -127,7 +125,6 @@ class MainWindow(QtGui.QMainWindow):
         # Setup the variables, load the plugins, and auto-generate the read dag nodes
         self.setupStartupVariables()
         depends_node.loadChildNodesFromPaths(depends_variables.value('NODE_PATH').split(':'))
-        depends_node.generateReadDagNodes()
 
         # Generate the Create menu.  Must be done after plugins are loaded.
         menuActions = self.createCreateMenuActions()
@@ -634,19 +631,6 @@ class MainWindow(QtGui.QMainWindow):
         
         # Gather the output that corresponds to the changed input
         affectedOutput = dagNode.outputAffectedByInput(input)
-
-        # If you have changed the input source, set this input's range based on the extents of the incoming range.
-        incomingDataPacket = self.dag.nodeOutputDataPacket(*depends_data_packet.nodeAndOutputFromScenegraphLocationString(input.value, self.dag))
-        if incomingDataPacket:
-            if incomingDataPacket.sequenceRange:
-                nodesAffected.append(dagNode)
-                seqRange = (str(incomingDataPacket.sequenceRange[0]), str(incomingDataPacket.sequenceRange[1]))
-                dagNode.setInputRange(input.name, seqRange)
-                
-                # A new association has been made, is there an output range that may also be affected?
-                if affectedOutput:
-                    for subName in affectedOutput.subOutputNames():
-                        dagNode.setOutputRange(affectedOutput.name, seqRange)
 
         # Notify the system that there has been a changed output - this covers the case of the output range
         # change (loop just above this one) and the input type being changed, and thus cascading down.

@@ -12,7 +12,6 @@ from fsmpipe.common import fileUtils
 
 
 import depends_node
-import depends_data_packet
 from depends_node import DagNodeInput, DagNodeOutput
 
 

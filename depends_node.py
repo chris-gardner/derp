@@ -699,18 +699,6 @@ def readNodeClassFactory(dataPacketType):
     return NewClassType
 
 
-######################### GENERATE READ DAG NODES #############################
-def generateReadDagNodes():
-    """
-    Construct a collection of dag nodes for each type of data packet loaded in
-    the current session.
-    """
-    for packetType in depends_util.allClassChildren(depends_data_packet.DataPacket):
-        # Create a new class based on all child objects of DataPacket
-        NewClassType = readNodeClassFactory(packetType)
-        # Install class into current module
-        globals()[NewClassType.__name__] = NewClassType
-        del NewClassType
 
 
 ############ FUNCTION TO IMPORT PLUGIN NODES INTO THIS NAMESPACE  #############
