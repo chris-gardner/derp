@@ -1002,7 +1002,7 @@ class GraphicsViewWidget(QtGui.QGraphicsView):
         self.setRenderHint(QtGui.QPainter.Antialiasing)
         self.setTransformationAnchor(QtGui.QGraphicsView.AnchorUnderMouse)
         self.setResizeAnchor(QtGui.QGraphicsView.AnchorUnderMouse)
-        self.setDragMode(QtGui.QGraphicsView.RubberBandDrag)
+        #self.setDragMode(QtGui.QGraphicsView.RubberBandDrag)
 
         # Hide the scroll bars
         self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
@@ -1018,7 +1018,6 @@ class GraphicsViewWidget(QtGui.QGraphicsView):
         self.boxing = False
         self.modifierBoxOrigin = None
         self.modifierBox = QtGui.QRubberBand(QtGui.QRubberBand.Rectangle, self)
-        self.altPressed = False
 
     def centerCoordinates(self):
         """
@@ -1103,9 +1102,14 @@ class GraphicsViewWidget(QtGui.QGraphicsView):
             for item in itemList:
                 bounds |= item.sceneBoundingRect()
             self.frameBounds(bounds)
-        if event.key() == QtCore.Qt.Key_Alt:
-            self.altPressed = True
-            QtGui.QApplication.setOverrideCursor(QtCore.Qt.OpenHandCursor)
+        if event.key() == QtCore.Qt.Key_A:
+            itemList = self.scene().items()
+            bounds = QtCore.QRectF()
+            for item in itemList:
+                bounds |= item.sceneBoundingRect()
+            self.frameBounds(bounds)
+
+
 
     def keyReleaseEvent(self, event):
         """
@@ -1119,9 +1123,6 @@ class GraphicsViewWidget(QtGui.QGraphicsView):
         if event.key() == QtCore.Qt.Key_Space:
             self.scene().setHighlightNodes([], intensities=None)
 
-        if event.key() == QtCore.Qt.Key_Alt:
-            self.altPressed = False
-            QtGui.QApplication.setOverrideCursor(QtCore.Qt.ArrowCursor)
 
     def mousePressEvent(self, event):
         """
@@ -1129,8 +1130,25 @@ class GraphicsViewWidget(QtGui.QGraphicsView):
         elements with the CTRL button.
         """
         # Handle CTRL+MouseClick box behavior
-        if event.modifiers() & QtCore.Qt.ControlModifier:
-            itemUnderMouse = self.itemAt(event.pos().x(), event.pos().y())
+
+        doDrag = False
+        itemUnderMouse = self.itemAt(event.pos().x(), event.pos().y())
+
+
+
+        if event.buttons() & QtCore.Qt.LeftButton:
+            if event.modifiers() == QtCore.Qt.ControlModifier:
+                doDrag = True
+            elif event.modifiers() == QtCore.Qt.NoModifier:
+                doDrag = True
+            elif event.modifiers() == QtCore.Qt.AltModifier:
+                if itemUnderMouse:
+                    # LMB + ALT + a node under the pointer
+                    # swallow the event
+                    event.accept()
+                    return
+
+        if doDrag:
             if not itemUnderMouse:
                 self.modifierBoxOrigin = event.pos()
                 self.boxing = True
@@ -1145,6 +1163,7 @@ class GraphicsViewWidget(QtGui.QGraphicsView):
         """
         # if not self.lastMousePos:
         #     self.lastMousePos = event.pos()
+        currentScale = self.matrix().m11()
         if event.modifiers() & QtCore.Qt.AltModifier:
             delta = event.pos() - self.lastMousePos
 
@@ -1153,14 +1172,12 @@ class GraphicsViewWidget(QtGui.QGraphicsView):
                 # ALT + MMB zoom
                 dx = math.pow(2.0, delta.x() / 240.0)
                 self.scaleView(dx)
-                self.lastMousePos = event.pos()
+                event.accept()
+
             elif event.buttons() & QtCore.Qt.LeftButton:
                 # ALT + LMB PAN
-                self.verticalScrollBar().setValue(self.verticalScrollBar().value() - delta.y())
-                self.horizontalScrollBar().setValue(self.horizontalScrollBar().value() - delta.x())
+                self.translate(delta.x() * currentScale, delta.y() * currentScale)
                 event.accept()
-                self.lastMousePos = event.pos()
-                return
 
         else:
             # Handle Modifier+MouseClick box behavior
@@ -1168,14 +1185,17 @@ class GraphicsViewWidget(QtGui.QGraphicsView):
                 if self.boxing:
                     self.modifierBox.setGeometry(QtCore.QRect(self.modifierBoxOrigin, event.pos()).normalized())
                     self.modifierBox.show()
-                    event.accept()
-                    return
             elif event.buttons() & QtCore.Qt.MiddleButton:
                 # MMB pan
                 delta = event.pos() - self.lastMousePos
-                self.verticalScrollBar().setValue(self.verticalScrollBar().value() - delta.y())
-                self.horizontalScrollBar().setValue(self.horizontalScrollBar().value() - delta.x())
-                self.lastMousePos = event.pos()
+                self.translate(delta.x() * currentScale, delta.y() * currentScale)
+                event.accept()
+            elif event.buttons() & QtCore.Qt.LeftButton:
+                # LMB select
+                if self.boxing:
+                    self.modifierBox.setGeometry(QtCore.QRect(self.modifierBoxOrigin, event.pos()).normalized())
+                    self.modifierBox.show()
+
 
         self.lastMousePos = event.pos()
         QtGui.QGraphicsView.mouseMoveEvent(self, event)
@@ -1187,17 +1207,24 @@ class GraphicsViewWidget(QtGui.QGraphicsView):
         """
         # Handle Modifier+MouseClick box behavior
         if self.boxing:
-            # Blocking the scene's signals insures only a single selectionChanged
-            # gets emitted at the very end.  This was necessary since the way I
-            # have written the property widget appears to freak out when refreshing
-            # twice instantaneously (see MainWindow's constructor for additional details).
-            nodesInHitBox = [x for x in self.items(QtCore.QRect(self.modifierBoxOrigin, event.pos()).normalized()) if
-                             type(x) is DrawNode]
-            self.scene().blockSignals(True)
-            for drawNode in nodesInHitBox:
-                drawNode.setSelected(not drawNode.isSelected())
-            self.scene().blockSignals(False)
-            self.scene().selectionChanged.emit()
+            if not event.modifiers() & QtCore.Qt.AltModifier:
+                # Blocking the scene's signals insures only a single selectionChanged
+                # gets emitted at the very end.  This was necessary since the way I
+                # have written the property widget appears to freak out when refreshing
+                # twice instantaneously (see MainWindow's constructor for additional details).
+                nodesInHitBox = [x for x in self.items(QtCore.QRect(self.modifierBoxOrigin, event.pos()).normalized()) if
+                                 type(x) is DrawNode]
+                self.scene().blockSignals(True)
+
+                # normal left drag behaviour is to clear selection first
+                # ctrl + drag will add or subtract selection
+                if not event.modifiers() & QtCore.Qt.ControlModifier:
+                    self.scene().clearSelection()
+
+                for drawNode in nodesInHitBox:
+                    drawNode.setSelected(not drawNode.isSelected())
+                self.scene().blockSignals(False)
+                self.scene().selectionChanged.emit()
             self.modifierBox.hide()
             self.boxing = False
         QtGui.QGraphicsView.mouseReleaseEvent(self, event)
@@ -1214,9 +1241,25 @@ class GraphicsViewWidget(QtGui.QGraphicsView):
         """
         Filling.
         """
-        sceneRect = self.sceneRect()
-        painter.fillRect(rect.intersect(sceneRect), QtGui.QBrush(QtCore.Qt.darkGray, QtCore.Qt.SolidPattern))
-        painter.drawRect(sceneRect)
+        realLeft = int(rect.left())
+        realRight = int(rect.right())
+        realTop = int(rect.top())
+        realBottom = int(rect.bottom())
+
+        gridSize  = 50
+        firstLeft = realLeft - (realLeft % gridSize)
+        firstTop = realTop - (realTop % gridSize)
+
+        # draw the grid lines
+        lines = []
+        for x in range(firstLeft, realRight, gridSize):
+            lines.append(QtCore.QLine(x, realTop, x, realBottom))
+        for y in range(firstTop, realBottom, gridSize):
+            lines.append(QtCore.QLine(realLeft, y, realRight, y))
+
+        gridpen = QtGui.QPen(QtCore.Qt.darkGray)
+        painter.setPen(gridpen)
+        painter.drawLines(lines)
 
 
     def scaleView(self, scaleFactor):
@@ -1227,3 +1270,4 @@ class GraphicsViewWidget(QtGui.QGraphicsView):
         if factor < 0.07 or factor > 100:
             return
         self.scale(scaleFactor, scaleFactor)
+

@@ -522,27 +522,6 @@ class MainWindow(QtGui.QMainWindow):
         self.graphicsScene.refreshDrawNodes(nodesAffected)
 
 
-    def communicationReceived(self, message):
-        """
-        This function acts as a switchboard for incoming messages from the
-        program's communication module.  It is very rough, but it has served
-        its purpose.  More work is needed to make it nice and general.
-        """
-        print "Dependency graph received: %s" % message
-        tokenizedCommand = message.strip().split('<-->')
-        if tokenizedCommand[0].strip() == "MODIFY":
-            attribute = tokenizedCommand[1].strip()
-            nodeName = tokenizedCommand[2].strip()
-            filename = tokenizedCommand[3].strip()
-
-            dagNode = self.dag.node(name=nodeName)
-            # TODO: Bring back and formalize
-            #for key in nodeDOTattributes:
-            #   if not key.startswith(attribute):
-            #       continue
-            #   dagNode.setAttribute(key, list(filename))
-            #   print "SUCCESS"
-            #   break
 
 
     def selectNode(self, dagNode):

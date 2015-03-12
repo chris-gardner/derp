@@ -178,6 +178,12 @@ class PropWidget(QtGui.QWidget):
             attributeGroup.setLayout(attributeLayout)
             self.scrollAreaLayout.addWidget(attributeGroup)
 
+        resultField = GeneralEdit("Result", self.dagNode.outVal,
+                                  enabled=False, isFileType=False,
+                                  toolTip='Result of this nodes last run',
+                                  parent=self)
+        self.scrollAreaLayout.addWidget(resultField)
+
 
 
     def refresh(self):
