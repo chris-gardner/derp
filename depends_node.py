@@ -120,17 +120,15 @@ class DagNodeAttribute(object):
     the user needs can be placed in here.
     """
     
-    def __init__(self, name, defaultValue, isFileType=False, docString=None, customFileDialogName=None):
+    def __init__(self, name, defaultValue, dataType='string', docString=None):
         """
         """
         self.name = name
         self.value = defaultValue
         self.seqRange = None
         self.docString = docString
-        self.customFileDialogName = customFileDialogName
+        self.dataType = dataType
 
-        # Constants, not written to disk
-        self.isFileType = isFileType
 
 
     # TODO: Should my dictionary keys be more interesting?
@@ -174,12 +172,8 @@ class DagNode(object):
         for attribute in self._defineAttributes():
             self._properties[attribute.name] = attribute
 
-
-    def __str__(self):
-        """
-        For printing.
-        """
-        return "DagNode - name:%s  type:%s  uuid:%s" % (self.name, type(self).__name__, str(self.uuid))
+    def __repr__(self):
+        return "<DagNode - name:%s  type:%s  uuid:%s>" % (self.name, type(self).__name__, str(self.uuid))
 
 
     def __lt__(self, other):
@@ -232,13 +226,10 @@ class DagNode(object):
 
 
     def setPortValues(self, inDict={}):
-        print 'setPortValues'
-        print 'inDict:', inDict
 
         self._portValues = dict()
         for index, input in enumerate(self.inputs()):
 
-            print input
             if not index in self._portValues:
                 self._portValues[index] = []
 
@@ -249,12 +240,9 @@ class DagNode(object):
                     self._portValues[index].append(node.outVal)
 
 
-        print self._portValues
         return self._portValues
 
     def getPortValues(self, portName):
-        print 'getPortValues'
-        print self._portValues
         if portName in self._portValues:
             return self._portValues[portName]
         return None

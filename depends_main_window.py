@@ -412,6 +412,7 @@ class MainWindow(QtGui.QMainWindow):
         When the user interface disconnects two nodes, tell the in-flight
         dag about it.
         """
+        print 'disconnect', fromDagNode, toDagNode
         nodesAffected = list()
         nodesAffected = nodesAffected + self.dagNodeDisconnected(fromDagNode)
         self.dag.disconnectNodes(fromDagNode, toDagNode)
@@ -724,91 +725,16 @@ class MainWindow(QtGui.QMainWindow):
             # Insure all the inputs are connected
             if not self.dag.nodeAllInputsConnected(dagNode):
                 raise RuntimeError("Node '%s' is missing a required input." % (dagNode.name))
-            
-            # Insure the inputs match what are connected to them
-            for input in dagNode.inputs():
-                incomingDataPacketType = type(self.dag.nodeInputDataPacket(dagNode, input))
-                if incomingDataPacketType not in input.allPossibleInputTypes():
-                    raise RuntimeError("Node '%s' has an incoming DataPacket that doesn't match its input's ('%s') type." % (dagNode.name, input.name))
-            
-            # Insure each input's range is within the output that's connected to it's range
-            for input in dagNode.inputs():
-                if not input.seqRange:
-                    continue
-                inputRange = (int(input.seqRange[0]), int(input.seqRange[1]))
-                incomingDataPacket = self.dag.nodeInputDataPacket(dagNode, input)
-                incomingRange = incomingDataPacket.sequenceRange
-                if inputRange[0] < incomingRange[0] or inputRange[1] > incomingRange[1]:
-                    (outputNode, output) = self.dag.nodeInputComesFromNode(dagNode, input)
-                    raise RuntimeError("Input range of node '%s' input '%s' extends beyond the bounds of output from node '%s' output '%s'" % 
-                                       (dagNode.name, input.name, outputNode.name, output.name))
-            
-            # Insure the number of input frames match the number of output frames for nodes that are embarassingly parallel.
-            # NOTE: This one can go away someday after careful thought - this restriction exists, at the moment, for simplicity's sake.
-            if dagNode.isEmbarrassinglyParallel():          # and self.dag.nodeGroupCount(dagNode) > 0:
-                for input in dagNode.inputs():
-                    if not input.seqRange:
-                        continue
-                    inputRange = (int(input.seqRange[0]), int(input.seqRange[1]))
-                    outputRangePreSubstitution = dagNode.outputAffectedByInput(input).getSeqRange()
-                    outputRange = (int(outputRangePreSubstitution[0]), int(outputRangePreSubstitution[1]))
-                    if inputRange != outputRange:
-                        raise RuntimeError("The parallel node, '%s', that lives in group '%s' is trimming its inputs a bit.  This is currently a no-no" %
-                                           (dagNode.name, self.dag.nodeInGroupNamed(dagNode)))
-            
-            # Insure all your outputs are filled-in
-            # Insure output paths exist (most nodes don't create paths if they aren't present)
-            # Insure the output paths can be written to
-            # Insure if there is an output sequence marker (#), there are sequence numbers
-            for output in dagNode.outputs():
-                # NOTE: This doesn't work at the moment because of how inclusive the values dict is.  Fix!
-                #for field in output.value.values():
-                #   if not field:
-                #       raise RuntimeError("Node '%s' is missing a value in its output field '%s'." % (dagNode.name, output.name))
-                for field in output.value.values():
-                    if not field: 
-                        continue
-                    dirName = os.path.dirname(field)
-                    if not os.path.exists(dirName):
-                        raise RuntimeError("Node '%s' will attempt to write to a directory that doesn't exist (%s)." % (dagNode.name, dirName))
-                for field in output.value.values():
-                    if not field: 
-                        continue
-                    dirName = os.path.dirname(field)
-                    if not os.access(dirName, os.W_OK | os.X_OK):
-                        raise RuntimeError("Node '%s' will attempt to write to a directory that you don't have permissions to (%s)." % (dagNode.name, dirName))
-                for key in output.value:
-                    if depends_util.framespec.hasFrameSymbols(output.value[key]):
-                        if not output.getSeqRange():
-                            raise RuntimeError("Node '%s' output '%s' has a string with frame symbols, but has no sequence range defined." % (dagNode.name, output.name))
-            
+
+
             # Insure the validation function passes for each node.
             try:
                 dagNode.validate()
             except Exception, err:
                 raise RuntimeError("Dag node '%s' did not pass its validation test with the error:\n%s" % (dagNode.name, err))
         
-        #
-        # Node group validation
-        #
-        # Insure all nodes in each node group are embarrassingly parallel
-        for groupName in self.dag.nodeGroupDict:
-            for dagNode in self.dag.nodeGroupDict[groupName]:
-                if not dagNode.isEmbarrassinglyParallel():
-                    raise RuntimeError("Node '%s' in group '%s' is not embarrassingly parallel." % (dagNode.name, groupName))
-        
-        # Insure all input and output ranges are identical in each dag group
-        # NOTE: This check can be removed with some careful thought and changes in the execution engine.
-        for groupName in self.dag.nodeGroupDict:
-            seqRange = None
-            for dagNode in self.dag.nodeGroupDict[groupName]:
-                for output in dagNode.outputs():
-                    if not seqRange and output.getSeqRange():
-                        seqRange = (int(output.getSeqRange()[0]), int(output.getSeqRange()[1]))
-                    else:
-                        if seqRange != (int(output.getSeqRange()[0]), int(output.getSeqRange()[1])):
-                            raise RuntimeError("Sequence ranges in group '%s' do not match.  Detection occurred on node '%s'." % (groupName, dagNode.name))
-        
+
+
         # Insure no node is in two groups at once
         for dagNode in dagNodes:
             if self.dag.nodeGroupCount(dagNode) > 1:
@@ -823,11 +749,15 @@ class MainWindow(QtGui.QMainWindow):
         """
 
         print 'executing dag nodes'.center(120, '#')
-        # Convert this ordered list into an execution recipe and give it to a plugin that knows what to do with it.
-        orderedDependencies = self.dag.allNodesBefore(dagNode)
+
+        # get the list of nodes to execute
+        orderedDependencies = self.dag.buildExecutionList(dagNode)
+
         # include ourselves at the end
         orderedDependencies.append(dagNode)
         print orderedDependencies
+
+
         # try:
         #     self.dagNodesSanityCheck(orderedDependencies)
         # except Exception, err:
@@ -841,14 +771,13 @@ class MainWindow(QtGui.QMainWindow):
 
 
             # Command execution
-            splitOperationFlag = True if self.dag.nodeGroupCount(dagNode) else False
-            #commandList = dagNode.executeList(dataPacketDict, splitOperations=splitOperationFlag)
 
             nodesBefore = self.dag.nodeConnectionsByPort(dagNode)
             dagNode.setPortValues(nodesBefore)
             commandList = dagNode.executePython()
-            executionList.append((dagNode.name, commandList))
-            
+            executionList.append((dagNode.name, dagNode.outVal))
+
+        print 'this is what i executed:'
         print executionList
 
 

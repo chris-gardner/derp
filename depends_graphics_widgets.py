@@ -135,7 +135,7 @@ class DrawNodeOutputNub(DrawNodeInputNub):
         """
         Accept left-button clicks to create the new connection.
         """
-        print self.name
+       # print self.name
         tempEdge = DrawEdge(self.parentItem(), None, floatingDestinationPoint=event.scenePos(), sourcePort=self.index)
         self.scene().addItem(tempEdge)
         self.ungrabMouse()
@@ -377,12 +377,14 @@ class DrawNode(QtGui.QGraphicsItem):
         """
         Help manage mouse movement undo/redos.
         """
-        print 'mouse event'
         if event.button() == QtCore.Qt.LeftButton:
             # Let the QT parent class handle the selection process before querying what's selected
             self.clickSnap = self.scene().dag.snapshot(nodeMetaDict=self.scene().nodeMetaDict(),
                                                        connectionMetaDict=self.scene().connectionMetaDict())
             self.clickPosition = self.pos()
+        elif event.button() == QtCore.Qt.MiddleButton:
+            print 'middle other button'
+
         else:
             print 'some other button'
         QtGui.QGraphicsItem.mousePressEvent(self, event)

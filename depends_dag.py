@@ -103,6 +103,35 @@ class DAG:
                 connDict[destPort] = [edge[0]]
         return connDict
 
+    def buildExecutionList(self, dagNode):
+        nodeList = []
+
+
+        for edge in self.network.in_edges(dagNode):
+            foundNode = edge[0]
+
+            # recurse into the input
+            inNodes = self.buildExecutionList(foundNode)
+            if inNodes:
+                nodeList.extend(inNodes)
+            # append the current node
+            nodeList.append(foundNode)
+
+        return nodeList
+
+
+    def inputNodes(self, dagNode):
+        """
+        Returns a list of nodes directly connected to a node
+        """
+        nodeList = []
+
+        for edge in self.network.in_edges(dagNode):
+            foundNode = edge[0]
+            nodeList.append(foundNode)
+
+        return nodeList
+
 
     def nodeConnectionsOut(self, dagNode):
         """
@@ -158,10 +187,7 @@ class DAG:
             raise RuntimeError('Node %s does not exist in DAG.' % startNode.name)
         if endNode not in self.network:
             raise RuntimeError('Node %s does not exist in DAG.' % endNode.name)
-        try:
-            self.network.remove_edge(endNode, startNode)
-        except:
-            pass
+        self.network.remove_edge(startNode, endNode)
 
 
     def setNodeStale(self, dagNode, newState):

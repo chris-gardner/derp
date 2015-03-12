@@ -72,7 +72,7 @@ class GeneralEdit(QtGui.QWidget):
         """
         A clean interface for setting the property value and emitting signals.
         """
-        self.lineEdit.setText(value)
+        self.lineEdit.setText(str(value))
         self.lineEdit.editingFinished.emit()    # TODO: Is this necessary?  Might be legacy.
     
     
@@ -81,7 +81,7 @@ class GeneralEdit(QtGui.QWidget):
 
 ###############################################################################
 ###############################################################################
-class AttrEdit(GeneralEdit):
+class StringAttrEdit(GeneralEdit):
     """
     An edit widget that is basically a general edit, but also stores the
     attribute object, dagNode we're associated with, and dag the node is a
@@ -93,9 +93,7 @@ class AttrEdit(GeneralEdit):
         """
         GeneralEdit.__init__(self,
                              label=attribute.name,
-                             isFileType=attribute.isFileType,
                              toolTip=attribute.docString,
-                             customFileDialogName=attribute.customFileDialogName,
                              parent=parent)
         self.dag = dag
         self.dagNode = dagNode
@@ -172,7 +170,8 @@ class PropWidget(QtGui.QWidget):
             attributeGroup = QtGui.QGroupBox("Attributes")
             attributeLayout = QtGui.QVBoxLayout()
             for attribute in self.dagNode.attributes():
-                newThing = AttrEdit(attribute=attribute, dagNode=self.dagNode, dag=dag, parent=attributeGroup)
+                print attribute.dataType
+                newThing = StringAttrEdit(attribute=attribute, dagNode=self.dagNode, dag=dag, parent=attributeGroup)
                 newThing.setValue(self.dagNode.attributeValue(attribute.name, variableSubstitution=False))
                 attributeLayout.addWidget(newThing)
                 newThing.valueChanged.connect(attrChangedLambda)
@@ -197,7 +196,7 @@ class PropWidget(QtGui.QWidget):
             elif title == "Outputs": outputBox = gb
 
         if attributeBox:
-            attributeEdits = attributeBox.findChildren(AttrEdit)
+            attributeEdits = attributeBox.findChildren(StringAttrEdit)
             for attrEdit in attributeEdits:
                 attrEdit.blockSignals(True)
                 attributeName = attrEdit.label.text()
