@@ -135,7 +135,7 @@ class DrawNodeOutputNub(DrawNodeInputNub):
         """
         Accept left-button clicks to create the new connection.
         """
-       # print self.name
+        # print self.name
         tempEdge = DrawEdge(self.parentItem(), None, floatingDestinationPoint=event.scenePos(), sourcePort=self.index)
         self.scene().addItem(tempEdge)
         self.ungrabMouse()
@@ -184,7 +184,7 @@ class DrawNode(QtGui.QGraphicsItem):
         self.setFlag(QtGui.QGraphicsItem.ItemIsMovable)
         self.setFlag(QtGui.QGraphicsItem.ItemIsSelectable)
         self.setFlag(QtGui.QGraphicsItem.ItemSendsGeometryChanges)
-        #self.setAcceptedMouseButtons(QtCore.Qt.LeftButton)
+        # self.setAcceptedMouseButtons(QtCore.Qt.LeftButton)
         self.setCacheMode(self.DeviceCoordinateCache)
         self.setZValue(-1)
 
@@ -211,7 +211,6 @@ class DrawNode(QtGui.QGraphicsItem):
         #     self.height = 15
 
 
-
     def type(self):
         """
         Assistance for the QT windowing toolkit.
@@ -219,15 +218,14 @@ class DrawNode(QtGui.QGraphicsItem):
         return DrawNode.Type
 
 
-
     def contextMenuEvent(self, contextEvent):
         menu = QtGui.QMenu()
         menu.addAction("Do stuff to this node")
 
-        position=QtGui.QCursor.pos()
+        position = QtGui.QCursor.pos()
         menu.exec_(position)
 
-       # this will tell the parent graphicsView not to use the event
+        # this will tell the parent graphicsView not to use the event
         contextEvent.setAccepted(True)
 
 
@@ -283,7 +281,7 @@ class DrawNode(QtGui.QGraphicsItem):
         # TODO: Is this the right place to put this?  Maybe setWidth (adjust) would be fine.
         # if len(self.dagNode.name)*10 != self.width:
         # self.prepareGeometryChange()
-        #   self.width = len(self.dagNode.name)*10
+        # self.width = len(self.dagNode.name)*10
         #   if self.width < 9: 
         #       self.width = 9
         adjust = 2.0
@@ -324,7 +322,7 @@ class DrawNode(QtGui.QGraphicsItem):
 
         # No lights or text for dot nodes
         # if type(self.dagNode) == depends_node.DagNodeDot:
-        #     return
+        # return
 
 
         # Text (none for dot nodes)
@@ -370,7 +368,6 @@ class DrawNode(QtGui.QGraphicsItem):
         for count, nub in enumerate(self.outNubs):
             verticalOffset = (count * spacing) + (count * spacing) + padding
             nub.setPos(self.boundingRect().width() - 10, verticalOffset + 5)
-
 
 
     def mousePressEvent(self, event):
@@ -880,9 +877,6 @@ class SceneWidget(QtGui.QGraphicsScene):
             drawNode.update()
 
 
-
-
-
     def mousePressEvent(self, event):
         """
         Stifles a rubber-band box when clicking on a node and moving it.
@@ -968,7 +962,7 @@ class SceneWidget(QtGui.QGraphicsScene):
                 connectionMeta = expectedConnectionMeta[connectionIdString]
                 drawEdge = self.drawEdge(self.drawNode(self.dag.node(nUUID=connection[0].uuid)),
                                          self.drawNode(self.dag.node(nUUID=connection[1].uuid))
-                )
+                                         )
                 if drawEdge:
                     drawEdge.sourcePort = connectionMeta['sourcePort']
                     drawEdge.destPort = connectionMeta['destPort']
@@ -1002,22 +996,21 @@ class GraphicsViewWidget(QtGui.QGraphicsView):
         self.setRenderHint(QtGui.QPainter.Antialiasing)
         self.setTransformationAnchor(QtGui.QGraphicsView.AnchorUnderMouse)
         self.setResizeAnchor(QtGui.QGraphicsView.AnchorUnderMouse)
-        #self.setDragMode(QtGui.QGraphicsView.RubberBandDrag)
 
         # Hide the scroll bars
         self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
         self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
 
         # Window properties
-        self.setWindowTitle(self.tr("Depends"))
+        self.setWindowTitle(self.tr("Derp"))
         self.setMinimumSize(200, 200)
         self.scale(1.0, 1.0)
-        # self.setFocusPolicy(QtCore.Qt.StrongFocus)
 
         self.lastMousePos = None
         self.boxing = False
         self.modifierBoxOrigin = None
         self.modifierBox = QtGui.QRubberBand(QtGui.QRubberBand.Rectangle, self)
+
 
     def centerCoordinates(self):
         """
@@ -1071,7 +1064,7 @@ class GraphicsViewWidget(QtGui.QGraphicsView):
         # have to trap the tab key in the general 'event' handler
         # because tab doesn't get passed to keyPressEvent
         if (event.type() == QtCore.QEvent.KeyPress) and (event.key() == QtCore.Qt.Key_Tab):
-            #cursor = QtGui.QCursor()
+            # cursor = QtGui.QCursor()
             #self.contextMenuEvent(self.mapFromGlobal(cursor.pos()))
             #t = tabMenu.TabTabTabWidget(winflags=QtCore.Qt.FramelessWindowHint)
             #t.under_cursor()
@@ -1110,7 +1103,6 @@ class GraphicsViewWidget(QtGui.QGraphicsView):
             self.frameBounds(bounds)
 
 
-
     def keyReleaseEvent(self, event):
         """
         Stifle auto-repeats and handle letting go of the space bar.
@@ -1133,8 +1125,6 @@ class GraphicsViewWidget(QtGui.QGraphicsView):
 
         doDrag = False
         itemUnderMouse = self.itemAt(event.pos().x(), event.pos().y())
-
-
 
         if event.buttons() & QtCore.Qt.LeftButton:
             if event.modifiers() == QtCore.Qt.ControlModifier:
@@ -1162,7 +1152,7 @@ class GraphicsViewWidget(QtGui.QGraphicsView):
         Panning the viewport around and CTRL+mouse drag behavior.
         """
         # if not self.lastMousePos:
-        #     self.lastMousePos = event.pos()
+        # self.lastMousePos = event.pos()
         currentScale = self.matrix().m11()
         if event.modifiers() & QtCore.Qt.AltModifier:
             delta = event.pos() - self.lastMousePos
@@ -1185,17 +1175,18 @@ class GraphicsViewWidget(QtGui.QGraphicsView):
                 if self.boxing:
                     self.modifierBox.setGeometry(QtCore.QRect(self.modifierBoxOrigin, event.pos()).normalized())
                     self.modifierBox.show()
+
             elif event.buttons() & QtCore.Qt.MiddleButton:
                 # MMB pan
                 delta = event.pos() - self.lastMousePos
                 self.translate(delta.x() * currentScale, delta.y() * currentScale)
                 event.accept()
+
             elif event.buttons() & QtCore.Qt.LeftButton:
                 # LMB select
                 if self.boxing:
                     self.modifierBox.setGeometry(QtCore.QRect(self.modifierBoxOrigin, event.pos()).normalized())
                     self.modifierBox.show()
-
 
         self.lastMousePos = event.pos()
         QtGui.QGraphicsView.mouseMoveEvent(self, event)
@@ -1212,7 +1203,8 @@ class GraphicsViewWidget(QtGui.QGraphicsView):
                 # gets emitted at the very end.  This was necessary since the way I
                 # have written the property widget appears to freak out when refreshing
                 # twice instantaneously (see MainWindow's constructor for additional details).
-                nodesInHitBox = [x for x in self.items(QtCore.QRect(self.modifierBoxOrigin, event.pos()).normalized()) if
+                nodesInHitBox = [x for x in self.items(QtCore.QRect(self.modifierBoxOrigin, event.pos()).normalized())
+                                 if
                                  type(x) is DrawNode]
                 self.scene().blockSignals(True)
 
@@ -1246,7 +1238,7 @@ class GraphicsViewWidget(QtGui.QGraphicsView):
         realTop = int(rect.top())
         realBottom = int(rect.bottom())
 
-        gridSize  = 50
+        gridSize = 50
         firstLeft = realLeft - (realLeft % gridSize)
         firstTop = realTop - (realTop % gridSize)
 
