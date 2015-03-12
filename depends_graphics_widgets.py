@@ -1018,6 +1018,7 @@ class GraphicsViewWidget(QtGui.QGraphicsView):
         self.boxing = False
         self.modifierBoxOrigin = None
         self.modifierBox = QtGui.QRubberBand(QtGui.QRubberBand.Rectangle, self)
+        self.altPressed = False
 
     def centerCoordinates(self):
         """
@@ -1102,7 +1103,9 @@ class GraphicsViewWidget(QtGui.QGraphicsView):
             for item in itemList:
                 bounds |= item.sceneBoundingRect()
             self.frameBounds(bounds)
-
+        if event.key() == QtCore.Qt.Key_Alt:
+            self.altPressed = True
+            QtGui.QApplication.setOverrideCursor(QtCore.Qt.OpenHandCursor)
 
     def keyReleaseEvent(self, event):
         """
@@ -1116,6 +1119,9 @@ class GraphicsViewWidget(QtGui.QGraphicsView):
         if event.key() == QtCore.Qt.Key_Space:
             self.scene().setHighlightNodes([], intensities=None)
 
+        if event.key() == QtCore.Qt.Key_Alt:
+            self.altPressed = False
+            QtGui.QApplication.setOverrideCursor(QtCore.Qt.ArrowCursor)
 
     def mousePressEvent(self, event):
         """
@@ -1140,9 +1146,13 @@ class GraphicsViewWidget(QtGui.QGraphicsView):
         # Panning
         if event.buttons() & QtCore.Qt.MiddleButton:
             delta = event.pos() - self.lastMousePos
-            self.verticalScrollBar().setValue(self.verticalScrollBar().value() - delta.y())
-            self.horizontalScrollBar().setValue(self.horizontalScrollBar().value() - delta.x())
-            self.lastMousePos = event.pos()
+            if self.altPressed:
+                dx = math.pow(2.0, delta.x() / 240.0)
+                self.scaleView(dx)
+            else:
+                self.verticalScrollBar().setValue(self.verticalScrollBar().value() - delta.y())
+                self.horizontalScrollBar().setValue(self.horizontalScrollBar().value() - delta.x())
+                self.lastMousePos = event.pos()
         else:
             self.lastMousePos = event.pos()
 
