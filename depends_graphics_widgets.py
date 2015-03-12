@@ -1014,7 +1014,7 @@ class GraphicsViewWidget(QtGui.QGraphicsView):
         self.scale(1.0, 1.0)
         # self.setFocusPolicy(QtCore.Qt.StrongFocus)
 
-
+        self.lastMousePos = None
         self.boxing = False
         self.modifierBoxOrigin = None
         self.modifierBox = QtGui.QRubberBand(QtGui.QRubberBand.Rectangle, self)
@@ -1143,27 +1143,41 @@ class GraphicsViewWidget(QtGui.QGraphicsView):
         """
         Panning the viewport around and CTRL+mouse drag behavior.
         """
-        # Panning
-        if event.buttons() & QtCore.Qt.MiddleButton:
+        # if not self.lastMousePos:
+        #     self.lastMousePos = event.pos()
+        if event.modifiers() & QtCore.Qt.AltModifier:
             delta = event.pos() - self.lastMousePos
-            if self.altPressed:
+
+            # Panning
+            if event.buttons() & QtCore.Qt.MiddleButton:
+                # ALT + MMB zoom
                 dx = math.pow(2.0, delta.x() / 240.0)
                 self.scaleView(dx)
-            else:
+                self.lastMousePos = event.pos()
+            elif event.buttons() & QtCore.Qt.LeftButton:
+                # ALT + LMB PAN
+                self.verticalScrollBar().setValue(self.verticalScrollBar().value() - delta.y())
+                self.horizontalScrollBar().setValue(self.horizontalScrollBar().value() - delta.x())
+                event.accept()
+                self.lastMousePos = event.pos()
+                return
+
+        else:
+            # Handle Modifier+MouseClick box behavior
+            if event.buttons() & QtCore.Qt.LeftButton and event.modifiers() & QtCore.Qt.ControlModifier:
+                if self.boxing:
+                    self.modifierBox.setGeometry(QtCore.QRect(self.modifierBoxOrigin, event.pos()).normalized())
+                    self.modifierBox.show()
+                    event.accept()
+                    return
+            elif event.buttons() & QtCore.Qt.MiddleButton:
+                # MMB pan
+                delta = event.pos() - self.lastMousePos
                 self.verticalScrollBar().setValue(self.verticalScrollBar().value() - delta.y())
                 self.horizontalScrollBar().setValue(self.horizontalScrollBar().value() - delta.x())
                 self.lastMousePos = event.pos()
-        else:
-            self.lastMousePos = event.pos()
 
-        # Handle Modifier+MouseClick box behavior
-        if event.buttons() & QtCore.Qt.LeftButton and event.modifiers() & QtCore.Qt.ControlModifier:
-            if self.boxing:
-                self.modifierBox.setGeometry(QtCore.QRect(self.modifierBoxOrigin, event.pos()).normalized())
-                self.modifierBox.show()
-                event.accept()
-                return
-
+        self.lastMousePos = event.pos()
         QtGui.QGraphicsView.mouseMoveEvent(self, event)
 
 
