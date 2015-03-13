@@ -533,6 +533,25 @@ class MainWindow(QtGui.QMainWindow):
         return dagNode
 
 
+    def selectUpstreamNodes(self, dagNode):
+        """
+        Selects all nodes that feed into this node
+        """
+        self.clearSelection()
+        print dagNode
+        orderedDependencies = self.dag.buildExecutionList(dagNode)
+
+        # include ourselves at the end
+        orderedDependencies.append(dagNode)
+        drawNodes = self.graphicsScene.drawNodes()
+        for node in orderedDependencies:
+            for dNode in drawNodes:
+                if dNode.dagNode == node:
+                    dNode.setSelected(True)
+        self.selectionChanged()
+        return orderedDependencies
+
+
     def selectionRefresh(self):
         """
         A small workaround for a property dialog refresh issue.  See comments 
@@ -720,7 +739,7 @@ class MainWindow(QtGui.QMainWindow):
                 raise RuntimeError("Node '%s' is present in multiple groups." % (dagNode.name))
 
 
-    def dagExecuteNode(self, dagNode, destFileOrDir, executeImmediately=False):
+    def dagExecuteNode(self, dagNode):
         """
         Generate an execution script using a output recipe for the given node.
         Takes a path for where to write the execution script, and offers the 
@@ -917,7 +936,11 @@ class MainWindow(QtGui.QMainWindow):
         if len(selectedDagNodes) > 1 or not selectedDagNodes:
             # TODO: Status bar
             return
-        self.dagExecuteNode(selectedDagNodes[0], '/tmp', executeImmediately)
+        selectedNode = selectedDagNodes[0]
+        if selectedNode.__class__.__name__ == 'DagNodeExecute':
+            self.dagExecuteNode(selectedDagNodes[0])
+        else:
+            print 'can only execute execute nodes'
 
 
     def deleteSelectedNodes(self):

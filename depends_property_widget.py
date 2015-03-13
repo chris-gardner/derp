@@ -184,6 +184,19 @@ class PropWidget(QtGui.QWidget):
                                   parent=self)
         self.scrollAreaLayout.addWidget(resultField)
 
+        if type(self.dagNode).__name__ == 'DagNodeExecute':
+            executeBtn = QtGui.QPushButton(self)
+            executeBtn.setText('Execute')
+            executeBtn.clicked.connect(self.executeBtnClicked)
+            self.scrollAreaLayout.addWidget(executeBtn)
+
+
+    def executeBtnClicked(self, *args):
+        print 'executing:', self.dagNode
+        mainWin = self.parent().parent()
+        mainWin.dagExecuteNode(self.dagNode)
+
+
 
 
     def refresh(self):

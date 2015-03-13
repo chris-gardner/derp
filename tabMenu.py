@@ -264,8 +264,11 @@ class TabyLineEdit(QtGui.QLineEdit):
 
         Also emit signals for the up/down arrows, and escape.
         """
-
         is_keypress = event.type() == QtCore.QEvent.KeyPress
+        if is_keypress:
+            print 'taby keyboard event!!'
+            print event.key()
+
 
         if is_keypress and event.key() == QtCore.Qt.Key_Tab:
             # Can't access tab key in keyPressedEvent
@@ -289,11 +292,9 @@ class TabyLineEdit(QtGui.QLineEdit):
             return super(TabyLineEdit, self).event(event)
 
 
-class TabTabTabWidget(QtGui.QDialog):
-    def __init__(self, on_create = None, parent = None, winflags = None):
-        super(TabTabTabWidget, self).__init__(parent = parent)
-        if winflags is not None:
-            self.setWindowFlags(winflags)
+class TabTabTabWidget(QtGui.QWidget):
+    def __init__(self, on_create = None):
+        super(TabTabTabWidget, self).__init__()
 
         self.setMinimumSize(200, 300)
         self.setMaximumSize(200, 300)
@@ -340,10 +341,24 @@ class TabTabTabWidget(QtGui.QDialog):
         self.things.clicked.connect(self.create)
 
         # When esc pressed, close
-        self.input.cancelled.connect(self.close)
+        self.input.cancelled.connect(self.hide)
 
         # Up and down arrow handling
         self.input.pressed_arrow.connect(self.move_selection)
+
+    def event(self, event):
+        """Make tab trigger returnPressed
+
+        Also emit signals for the up/down arrows, and escape.
+        """
+        print 'event!'
+        is_keypress = event.type() == QtCore.QEvent.KeyPress
+
+
+        if is_keypress and event.key() == QtCore.Qt.Key_Escape:
+            self.hide()
+
+
 
     def under_cursor(self):
         def clamp(val, mi, ma):
@@ -427,6 +442,7 @@ class TabTabTabWidget(QtGui.QDialog):
         """Save weights when closing
         """
         self.weights.save()
+        self.hide()
         super(TabTabTabWidget, self).close()
 
     def create(self):
@@ -448,6 +464,4 @@ class TabTabTabWidget(QtGui.QDialog):
         self.input.setText(prev_string)
 
         # Create node, increment weight and close
-        self.cb_on_create(thing = thing)
-        self.weights.increment(thing['menupath'])
         self.close()

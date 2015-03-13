@@ -654,13 +654,14 @@ class DrawEdge(QtGui.QGraphicsItem):
 
                     print sourcePortType, destNodeType
 
-                    if sourcePortType != destNodeType:
-                        print 'types dont match - bailing'
-                        self.sourceDrawNode().removeDrawEdge(self)
-                        self.scene().removeItem(self)
-                        self.mouseMoved = False
-                        QtGui.QGraphicsItem.mouseReleaseEvent(self, event)
-                        return
+                    if destNodeType != 'any':
+                        if sourcePortType != destNodeType:
+                            print 'types dont match - bailing'
+                            self.sourceDrawNode().removeDrawEdge(self)
+                            self.scene().removeItem(self)
+                            self.mouseMoved = False
+                            QtGui.QGraphicsItem.mouseReleaseEvent(self, event)
+                            return
 
                     self.dest.addDrawEdge(self)
                     self.horizontalConnectionOffset = 0.0
@@ -1010,7 +1011,7 @@ class GraphicsViewWidget(QtGui.QGraphicsView):
         self.boxing = False
         self.modifierBoxOrigin = None
         self.modifierBox = QtGui.QRubberBand(QtGui.QRubberBand.Rectangle, self)
-
+        self.tabWidget = None
 
     def centerCoordinates(self):
         """
@@ -1064,14 +1065,17 @@ class GraphicsViewWidget(QtGui.QGraphicsView):
         # have to trap the tab key in the general 'event' handler
         # because tab doesn't get passed to keyPressEvent
         if (event.type() == QtCore.QEvent.KeyPress) and (event.key() == QtCore.Qt.Key_Tab):
-            # cursor = QtGui.QCursor()
-            #self.contextMenuEvent(self.mapFromGlobal(cursor.pos()))
-            #t = tabMenu.TabTabTabWidget(winflags=QtCore.Qt.FramelessWindowHint)
-            #t.under_cursor()
+            cursor = QtGui.QCursor()
+            # self.contextMenuEvent(self.mapFromGlobal(cursor.pos()))
+            if not self.tabWidget:
+                t = tabMenu.TabTabTabWidget()
 
-            # Show, and make front-most window (mostly for OS X)
-            #t.show()
-            #t.raise_()
+                self.tabWidget = QtGui.QGraphicsProxyWidget()
+                self.tabWidget.setWidget(t)
+                self.scene().addItem(self.tabWidget)
+            self.tabWidget.setPos(self.mapFromGlobal(cursor.pos()))
+            self.tabWidget.show()
+
             return True
 
         return QtGui.QGraphicsView.event(self, event)
@@ -1132,9 +1136,15 @@ class GraphicsViewWidget(QtGui.QGraphicsView):
             elif event.modifiers() == QtCore.Qt.NoModifier:
                 doDrag = True
             elif event.modifiers() == QtCore.Qt.AltModifier:
+                # LMB + ALT
+                # swallow the event so we don't clear the selection
+                event.accept()
+                return
+            elif event.modifiers() == QtCore.Qt.ShiftModifier:
+                # LMB + Shift
+                # select all upstream nodes
                 if itemUnderMouse:
-                    # LMB + ALT + a node under the pointer
-                    # swallow the event
+                    self.parent().selectUpstreamNodes(itemUnderMouse.dagNode)
                     event.accept()
                     return
 
