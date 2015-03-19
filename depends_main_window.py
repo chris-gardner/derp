@@ -168,7 +168,6 @@ class MainWindow(QtGui.QMainWindow):
         self.graphicsScene.nodesDisconnected.connect(self.nodesDisconnected)
         self.graphicsScene.nodesConnected.connect(self.nodesConnected)
         self.propWidget.attrChanged.connect(self.propertyEdited)
-        self.propWidget.mouseover.connect(self.highlightDagNodes)
         self.variableWidget.addVariable.connect(depends_variables.add)
         self.variableWidget.setVariable.connect(depends_variables.setx)
         self.variableWidget.removeVariable.connect(depends_variables.remove)
@@ -448,22 +447,9 @@ class MainWindow(QtGui.QMainWindow):
                 nodesAffected = nodesAffected + [dagNode]
                 somethingChanged = True
         else:
-            if propertyType is depends_node.DagNodeInput:
-                if newValue != dagNode.inputValue(propName):
-                    dagNode.setInputValue(propName, newValue)
-                    nodesAffected = nodesAffected + self.dagNodeInputChanged(dagNode, dagNode.inputNamed(propName))
-                    somethingChanged = True
-                    self.propWidget.refresh()
 
-            elif propertyType is depends_node.DagNodeOutput:
-                bothNames = propName.split('.')
-                if newValue != dagNode.outputValue(bothNames[0], bothNames[1]):
-                    dagNode.setOutputValue(bothNames[0], bothNames[1], newValue)
-                    self.dag.setNodeStale(dagNode, False)
-                    nodesAffected = nodesAffected + self.dagNodeOutputChanged(dagNode, dagNode.outputNamed(bothNames[0]))
-                    somethingChanged = True
                 
-            elif propertyType is depends_node.DagNodeAttribute:
+            if propertyType is depends_node.DagNodeAttribute:
                 if newValue != dagNode.attributeValue(propName):
                     dagNode.setAttributeValue(propName, newValue)
                     nodesAffected = nodesAffected + [dagNode]
@@ -472,49 +458,6 @@ class MainWindow(QtGui.QMainWindow):
 
         # Undos aren't registered when the value doesn't actually change
         if somethingChanged:
-            currentSnap = self.dag.snapshot(nodeMetaDict=self.graphicsScene.nodeMetaDict(), connectionMetaDict=self.graphicsScene.connectionMetaDict())
-            self.undoStack.push(depends_undo_commands.DagAndSceneUndoCommand(preSnap, currentSnap, self.dag, self.graphicsScene, self.propWidget))
-
-        # Updates the drawNodes for each of the affected dagNodes
-        self.graphicsScene.refreshDrawNodes(nodesAffected)
-
-
-    def propertyRangeEdited(self, dagNode, propName, newRange, propertyType):
-        """
-        When the user interface edits the range of a property (attribute, input,
-        or output), modify the in-flight dag and nodes and insure everything
-        needed changes accordingly.
-        """
-        registerUndo = False
-        preSnap = self.dag.snapshot(nodeMetaDict=self.graphicsScene.nodeMetaDict(), connectionMetaDict=self.graphicsScene.connectionMetaDict())
-
-        # None is a legit value for a range value.  Make sure blanks are Nones.
-        if newRange[0] == "":
-            newRange = (None, newRange[1])
-        if newRange[1] == "":
-            newRange = (newRange[0], None)
-        
-        nodesAffected = list()
-        if propertyType is depends_node.DagNodeInput:
-            if newRange != dagNode.inputRange(propName, variableSubstitution=False):
-                dagNode.setInputRange(propName, newRange)
-                nodesAffected = nodesAffected + [dagNode]
-                registerUndo = True
-                
-        elif propertyType is depends_node.DagNodeOutput:
-            if newRange != dagNode.outputRange(propName, variableSubstitution=False):
-                dagNode.setOutputRange(propName, newRange)
-                # Note: Changing the output range does not affect the staleness of the node
-                nodesAffected = nodesAffected + [dagNode]
-                registerUndo = True
-                
-        elif propertyType is depends_node.DagNodeAttribute:
-            if newRange != dagNode.attributeRange(propName, variableSubstitution=False):
-                dagNode.setAttributeRange(propName, newRange)
-                nodesAffected = nodesAffected + [dagNode]
-
-        # Undos aren't registered when the value doesn't actually change, 
-        if registerUndo:
             currentSnap = self.dag.snapshot(nodeMetaDict=self.graphicsScene.nodeMetaDict(), connectionMetaDict=self.graphicsScene.connectionMetaDict())
             self.undoStack.push(depends_undo_commands.DagAndSceneUndoCommand(preSnap, currentSnap, self.dag, self.graphicsScene, self.propWidget))
 
@@ -538,7 +481,6 @@ class MainWindow(QtGui.QMainWindow):
         Selects all nodes that feed into this node
         """
         self.clearSelection()
-        print dagNode
         orderedDependencies = self.dag.buildExecutionList(dagNode)
 
         # include ourselves at the end
@@ -573,17 +515,6 @@ class MainWindow(QtGui.QMainWindow):
         self.selectionTimer.start(0)
 
 
-    def highlightDagNodes(self, dagNodeList):
-        """
-        Given a list of DagNodes to highlight, derive their drawNodes, and 
-        alert the graphics widgets that a highlight might be apropos.
-        """
-        drawNodes = list()
-        if dagNodeList:
-            for dagNode in dagNodeList:
-                drawNodes.append(self.graphicsScene.drawNode(dagNode))
-        self.graphicsScene.setHighlightNodes(drawNodes)
-    
 
     def setWindowTitleClean(self, isClean):
         """

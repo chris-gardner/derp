@@ -21,7 +21,7 @@ connections between the nodes, to the nubs the connections connect to.
 dataTypeColors = {
     'number': [0.0, 1.0, 0.0],
     'string': [0.0, 0.0, 1.0],
-    'boolean': [1.0, 0.5, 0.0],
+    'bool': [1.0, 0.5, 0.0],
 
 }
 
@@ -326,7 +326,7 @@ class DrawNode(QtGui.QGraphicsItem):
 
 
         # Text (none for dot nodes)
-        textRect = QtCore.QRectF(4, 4, self.boundingRect().width() - 4, 30)
+        textRect = QtCore.QRectF(4, 4, self.boundingRect().width() - 4, 20)
         font = painter.font()
         font.setPointSize(14)
         painter.setFont(font)
@@ -1114,10 +1114,6 @@ class GraphicsViewWidget(QtGui.QGraphicsView):
         # Ignore auto-repeats
         if event.isAutoRepeat():
             return
-
-        # Clear the highlight list if you just released the space bar
-        if event.key() == QtCore.Qt.Key_Space:
-            self.scene().setHighlightNodes([], intensities=None)
 
 
     def mousePressEvent(self, event):

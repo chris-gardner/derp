@@ -417,12 +417,14 @@ class DagNode(object):
         return self._properties[attrName]
 
 
-    def attributeValue(self, attrName, variableSubstitution=True):
+    def attributeValue(self, attrName, variableSubstitution=False):
         """
         Return a value string for the given attribute name.  Workflow variables
         are substituted by default.
         """
         value = self.attributeNamed(attrName).value
+        print 'depends node attribute value'
+        print value
         if variableSubstitution:
             value = depends_variables.substitute(value)
         return value

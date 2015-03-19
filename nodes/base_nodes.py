@@ -32,3 +32,27 @@ class DagNodeExecute(depends_node.DagNode):
 
         self.outVal = outVal
 
+
+
+class DagNodeAttrTest(depends_node.DagNode):
+    category = 'Base'
+
+    def _defineAttributes(self):
+        return [
+            depends_node.DagNodeAttribute('numberAttr', '1', dataType='int'),
+            depends_node.DagNodeAttribute('booleanAttr', True, dataType='bool'),
+            depends_node.DagNodeAttribute('stringAttr', 'asdf', dataType='string'),
+            depends_node.DagNodeAttribute('boolenAttr', True, dataType='bool'),
+
+        ]
+
+    def _defineInputs(self):
+        return [DagNodeInput('input1', 'bool', None)]
+
+    def _defineOutputs(self):
+        return [DagNodeOutput('output1', 'bool', None)]
+
+    def executePython(self):
+        myVal = float(self.attributeValue('booleanAttr'))
+        self.outVal = myVal
+

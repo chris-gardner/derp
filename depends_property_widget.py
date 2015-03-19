@@ -29,43 +29,43 @@ class GeneralEdit(QtGui.QWidget):
     """
 
     # Signals
-    valueChanged = QtCore.Signal(str, str, type)
+    valueChanged = QtCore.Signal(str, object, type)
 
-    def __init__(self, label="Unknown", value="", enabled=True, isFileType=True, tighter=False, toolTip=None, customFileDialogName=None, parent=None):
+    def __init__(self, label="Unknown", value="", enabled=True, toolTip=None,
+                 parent=None):
         """
         """
         QtGui.QWidget.__init__(self, parent)
+        self.label = label
+        self.enabled = enabled
+        self.toolTip = toolTip
+        self.value = value
+        self.draw()
 
-        self.customFileDialogName = customFileDialogName
 
+    def draw(self):
         # The upper layout holds the label, the value, and the "expand" button
         upperLayout = QtGui.QHBoxLayout()
-        upperLayout.setContentsMargins(0,5,0,5)
-        #upperLayout.setSpacing(0)
-        if tighter:
-            upperLayout.setContentsMargins(0,0,0,0)
+        upperLayout.setContentsMargins(0, 5, 0, 5)
+        # upperLayout.setSpacing(0)
 
-        self.label = QtGui.QLabel(label, self)
-        if toolTip:
-            self.label.setToolTip(toolTip)
+        self.label = QtGui.QLabel(self.label, self)
+        if self.toolTip:
+            self.label.setToolTip(self.toolTip)
         self.lineEdit = QtGui.QLineEdit(self)
         self.lineEdit.setMinimumWidth(150)
         self.lineEdit.setFixedHeight(25)
         self.lineEdit.setAlignment(QtCore.Qt.AlignLeft)
-        self.lineEdit.setEnabled(enabled)
-        self.setValue(value)
+        self.lineEdit.setEnabled(self.enabled)
 
         upperLayout.addWidget(self.label)
         upperLayout.addWidget(self.lineEdit)
 
-        # Stick both layouts in a vertical layout wrapper
-        outerLayout = QtGui.QVBoxLayout(self)
-        outerLayout.setContentsMargins(0,0,0,0)
-        outerLayout.addLayout(upperLayout)
-        self.setLayout(outerLayout)
+        self.setLayout(upperLayout)
 
         # Chain signals out with property name and value
-        self.lineEdit.editingFinished.connect(lambda: self.valueChanged.emit(self.label.text(), self.lineEdit.text(), depends_node.DagNodeAttribute))
+        self.lineEdit.editingFinished.connect(
+            lambda: self.valueChanged.emit(self.label.text(), self.lineEdit.text(), depends_node.DagNodeAttribute))
 
 
     def setValue(self, value):
@@ -73,10 +73,7 @@ class GeneralEdit(QtGui.QWidget):
         A clean interface for setting the property value and emitting signals.
         """
         self.lineEdit.setText(str(value))
-        self.lineEdit.editingFinished.emit()    # TODO: Is this necessary?  Might be legacy.
-    
-    
-
+        self.lineEdit.editingFinished.emit()  # TODO: Is this necessary?  Might be legacy.
 
 
 ###############################################################################
@@ -100,6 +97,105 @@ class StringAttrEdit(GeneralEdit):
         self.attribute = attribute
 
 
+class FloatAttrEdit(StringAttrEdit):
+    """
+    An edit widget that is basically a general edit, but also stores the
+    attribute object, dagNode we're associated with, and dag the node is a
+    member of.
+    """
+
+    def __init__(self, attribute=None, dagNode=None, dag=None, parent=None):
+        """
+        """
+        GeneralEdit.__init__(self,
+                             label=attribute.name,
+                             toolTip=attribute.docString,
+                             parent=parent)
+        self.dag = dag
+        self.dagNode = dagNode
+        self.attribute = attribute
+
+    def draw(self):
+        upperLayout = QtGui.QHBoxLayout()
+        upperLayout.setContentsMargins(0, 5, 0, 5)
+        # upperLayout.setSpacing(0)
+
+        self.label = QtGui.QLabel(self.label, self)
+        if self.toolTip:
+            self.label.setToolTip(self.toolTip)
+        self.lineEdit = QtGui.QDoubleSpinBox(self)
+        self.lineEdit.setMinimumWidth(150)
+        self.lineEdit.setFixedHeight(25)
+        self.lineEdit.setEnabled(self.enabled)
+
+        upperLayout.addWidget(self.label)
+        upperLayout.addWidget(self.lineEdit)
+
+        self.setLayout(upperLayout)
+
+        # Chain signals out with property name and value
+        self.lineEdit.editingFinished.connect(
+            lambda: self.valueChanged.emit(self.label.text(), self.lineEdit.value(), depends_node.DagNodeAttribute))
+
+    def setValue(self, value):
+        """
+        A clean interface for setting the property value and emitting signals.
+        """
+        print value
+        self.value = value
+        self.lineEdit.setValue(float(value))
+        self.lineEdit.editingFinished.emit()  # TODO: Is this necessary?  Might be legacy.
+
+
+
+class BoolAttrEdit(StringAttrEdit):
+    """
+    An edit widget that is basically a general edit, but also stores the
+    attribute object, dagNode we're associated with, and dag the node is a
+    member of.
+    """
+
+    def __init__(self, attribute=None, dagNode=None, dag=None, parent=None):
+        """
+        """
+        GeneralEdit.__init__(self,
+                             label=attribute.name,
+                             toolTip=attribute.docString,
+                             parent=parent)
+        self.dag = dag
+        self.dagNode = dagNode
+        self.attribute = attribute
+
+    def draw(self):
+        upperLayout = QtGui.QHBoxLayout()
+        upperLayout.setContentsMargins(0, 5, 0, 5)
+        # upperLayout.setSpacing(0)
+
+        self.label = QtGui.QLabel(self.label, self)
+        if self.toolTip:
+            self.label.setToolTip(self.toolTip)
+        self.lineEdit = QtGui.QCheckBox(self)
+        self.lineEdit.setMinimumWidth(150)
+        self.lineEdit.setFixedHeight(25)
+        self.lineEdit.setEnabled(self.enabled)
+
+        upperLayout.addWidget(self.label)
+        upperLayout.addWidget(self.lineEdit)
+
+        self.setLayout(upperLayout)
+
+        # Chain signals out with property name and value
+        self.lineEdit.stateChanged.connect(
+            lambda: self.valueChanged.emit(self.label.text(), self.lineEdit.isChecked(), depends_node.DagNodeAttribute))
+
+    def setValue(self, value):
+        """
+        A clean interface for setting the property value and emitting signals.
+        """
+        print value
+        self.value = value
+        self.lineEdit.setChecked(bool(value))
+        #self.lineEdit.stateChanged.emit(bool(value))  # TODO: Is this necessary?  Might be legacy.
 
 ###############################################################################
 ###############################################################################
@@ -110,16 +206,14 @@ class PropWidget(QtGui.QWidget):
     """
 
     # Signals
-    attrChanged = QtCore.Signal(depends_node.DagNode, str, str, type)
-    rangeChanged = QtCore.Signal(depends_node.DagNode, str, object, type)
-    mouseover = QtCore.Signal(depends_node.DagNode)
+    attrChanged = QtCore.Signal(depends_node.DagNode, str, object, type)
 
     def __init__(self, parent=None):
         """
         """
         QtGui.QWidget.__init__(self, parent)
         self.mainLayout = QtGui.QVBoxLayout(self)
-        self.mainLayout.setContentsMargins(0,0,0,0)
+        self.mainLayout.setContentsMargins(0, 0, 0, 0)
         self.mainLayout.setSpacing(0)
         self.scrollArea = QtGui.QScrollArea()
         self.mainLayout.addWidget(self.scrollArea)
@@ -135,7 +229,7 @@ class PropWidget(QtGui.QWidget):
         self.setMinimumHeight(400)
 
         self.dagNode = None
-
+        self.resultField = None
 
 
     def rebuild(self, dag, dagNodes):
@@ -156,13 +250,15 @@ class PropWidget(QtGui.QWidget):
 
         # Helpers
         self.dagNode = dagNodes[0]
-        attrChangedLambda = lambda propName, newValue, type, func=self.attrChanged.emit: func(self.dagNode, propName, newValue, type)
+        attrChangedLambda = lambda propName, newValue, type, func=self.attrChanged.emit: func(self.dagNode, propName,
+                                                                                              newValue, type)
 
         # Populate the UI with name and type
-        nameWidget = GeneralEdit("Name", self.dagNode.name, isFileType=False, parent=self)
+        nameWidget = GeneralEdit("Name", self.dagNode.name, parent=self)
         nameWidget.valueChanged.connect(attrChangedLambda)
         self.scrollAreaLayout.addWidget(nameWidget)
-        self.scrollAreaLayout.addWidget(GeneralEdit("Type", self.dagNode.typeStr(), enabled=False, isFileType=False, parent=self))
+        self.scrollAreaLayout.addWidget(
+            GeneralEdit("Type", self.dagNode.typeStr(), enabled=False, parent=self))
 
 
         # Add the attributes (don't show any attributes that begin with input/output keywords)
@@ -170,19 +266,27 @@ class PropWidget(QtGui.QWidget):
             attributeGroup = QtGui.QGroupBox("Attributes")
             attributeLayout = QtGui.QVBoxLayout()
             for attribute in self.dagNode.attributes():
-                print attribute.dataType
-                newThing = StringAttrEdit(attribute=attribute, dagNode=self.dagNode, dag=dag, parent=attributeGroup)
+
+                if attribute.dataType in ['float', 'int']:
+                    newThing = FloatAttrEdit(attribute=attribute, dagNode=self.dagNode, dag=dag, parent=attributeGroup)
+                elif attribute.dataType in ['bool']:
+                    newThing = BoolAttrEdit(attribute=attribute, dagNode=self.dagNode, dag=dag, parent=attributeGroup)
+
+                else:
+                    newThing = StringAttrEdit(attribute=attribute, dagNode=self.dagNode, dag=dag, parent=attributeGroup)
+
                 newThing.setValue(self.dagNode.attributeValue(attribute.name, variableSubstitution=False))
+
                 attributeLayout.addWidget(newThing)
                 newThing.valueChanged.connect(attrChangedLambda)
             attributeGroup.setLayout(attributeLayout)
             self.scrollAreaLayout.addWidget(attributeGroup)
 
-        resultField = GeneralEdit("Result", self.dagNode.outVal,
-                                  enabled=False, isFileType=False,
-                                  toolTip='Result of this nodes last run',
-                                  parent=self)
-        self.scrollAreaLayout.addWidget(resultField)
+        self.resultField = GeneralEdit("Result", self.dagNode.outVal,
+                                       enabled=False,
+                                       toolTip='Result of this nodes last run',
+                                       parent=self)
+        self.scrollAreaLayout.addWidget(self.resultField)
 
         if type(self.dagNode).__name__ == 'DagNodeExecute':
             executeBtn = QtGui.QPushButton(self)
@@ -195,8 +299,8 @@ class PropWidget(QtGui.QWidget):
         print 'executing:', self.dagNode
         mainWin = self.parent().parent()
         mainWin.dagExecuteNode(self.dagNode)
-
-
+        print 'refreshing'
+        self.refresh()
 
 
     def refresh(self):
@@ -210,9 +314,12 @@ class PropWidget(QtGui.QWidget):
         outputBox = None
         for gb in groupBoxes:
             title = gb.title()
-            if title == "Inputs": inputBox = gb
-            elif title == "Attributes": attributeBox = gb
-            elif title == "Outputs": outputBox = gb
+            if title == "Inputs":
+                inputBox = gb
+            elif title == "Attributes":
+                attributeBox = gb
+            elif title == "Outputs":
+                outputBox = gb
 
         if attributeBox:
             attributeEdits = attributeBox.findChildren(StringAttrEdit)
@@ -221,5 +328,10 @@ class PropWidget(QtGui.QWidget):
                 attributeName = attrEdit.label.text()
                 attrEdit.setValue(self.dagNode.attributeValue(attributeName, variableSubstitution=False))
                 attrEdit.blockSignals(False)
+
+        if self.resultField:
+            self.resultField.blockSignals(True)
+            self.resultField.setValue(self.dagNode.outVal)
+            self.resultField.blockSignals(False)
 
 
