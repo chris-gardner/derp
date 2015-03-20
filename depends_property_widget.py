@@ -195,7 +195,7 @@ class BoolAttrEdit(StringAttrEdit):
         print value
         self.value = value
         self.lineEdit.setChecked(bool(value))
-        #self.lineEdit.stateChanged.emit(bool(value))  # TODO: Is this necessary?  Might be legacy.
+        self.lineEdit.stateChanged.emit(bool(value))  # TODO: Is this necessary?  Might be legacy.
 
 ###############################################################################
 ###############################################################################
@@ -255,10 +255,13 @@ class PropWidget(QtGui.QWidget):
 
         # Populate the UI with name and type
         nameWidget = GeneralEdit("Name", self.dagNode.name, parent=self)
+        nameWidget.setValue(self.dagNode.name)
         nameWidget.valueChanged.connect(attrChangedLambda)
         self.scrollAreaLayout.addWidget(nameWidget)
-        self.scrollAreaLayout.addWidget(
-            GeneralEdit("Type", self.dagNode.typeStr(), enabled=False, parent=self))
+
+        typeWidget = GeneralEdit("Type", enabled=False, parent=self)
+        typeWidget.setValue(self.dagNode.typeStr())
+        self.scrollAreaLayout.addWidget(typeWidget)
 
 
         # Add the attributes (don't show any attributes that begin with input/output keywords)
@@ -282,10 +285,11 @@ class PropWidget(QtGui.QWidget):
             attributeGroup.setLayout(attributeLayout)
             self.scrollAreaLayout.addWidget(attributeGroup)
 
-        self.resultField = GeneralEdit("Result", self.dagNode.outVal,
+        self.resultField = GeneralEdit("Result",
                                        enabled=False,
                                        toolTip='Result of this nodes last run',
                                        parent=self)
+        self.resultField.setValue(self.dagNode.outVal)
         self.scrollAreaLayout.addWidget(self.resultField)
 
         if type(self.dagNode).__name__ == 'DagNodeExecute':

@@ -304,7 +304,7 @@ class TabTabTabWidget(QtGui.QWidget):
 
         # Input box
         self.input = TabyLineEdit()
-
+        self.setFocusProxy(self.input)
         # Node weighting
         self.weights = NodeWeights(os.path.expanduser("~/.nuke/tabtabtab_weights.json"))
         self.weights.load() # weights.save() called in close method
@@ -345,6 +345,7 @@ class TabTabTabWidget(QtGui.QWidget):
 
         # Up and down arrow handling
         self.input.pressed_arrow.connect(self.move_selection)
+        self.setFocus()
 
     def event(self, event):
         """Make tab trigger returnPressed
@@ -366,6 +367,7 @@ class TabTabTabWidget(QtGui.QWidget):
 
         # Get cursor position, and screen dimensions on active screen
         cursor = QtGui.QCursor().pos()
+        print cursor.x(), cursor.y()
         screen = QtGui.QDesktopWidget().screenGeometry(cursor)
 
         # Get window position so cursor is just over text input
@@ -376,8 +378,9 @@ class TabTabTabWidget(QtGui.QWidget):
         xpos = clamp(xpos, screen.left(), screen.right() - self.width())
         ypos = clamp(ypos, screen.top(), screen.bottom() - (self.height()-13))
 
+        print 'moving to:', xpos, ypos
         # Move window
-        self.move(xpos, ypos)
+        self.move(cursor.x(), cursor.y())
 
     def move_selection(self, where):
         if where not in ["first", "up", "down"]:

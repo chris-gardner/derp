@@ -1069,12 +1069,15 @@ class GraphicsViewWidget(QtGui.QGraphicsView):
             # self.contextMenuEvent(self.mapFromGlobal(cursor.pos()))
             if not self.tabWidget:
                 t = tabMenu.TabTabTabWidget()
-
                 self.tabWidget = QtGui.QGraphicsProxyWidget()
                 self.tabWidget.setWidget(t)
                 self.scene().addItem(self.tabWidget)
-            self.tabWidget.setPos(self.mapFromGlobal(cursor.pos()))
+            position = self.centerCoordinates()
+            print 'cursor:', cursor.pos().x(), cursor.pos().y()
+            print self.mapToScene(cursor.pos())
+            self.tabWidget.setPos(self.mapToGlobal(cursor.pos()))
             self.tabWidget.show()
+           # self.tabWidget.widget().under_cursor()
 
             return True
 
