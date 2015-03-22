@@ -95,19 +95,11 @@ class MainWindow(QtGui.QMainWindow):
         fileMenu = self.menuBar().addMenu("&File")
         fileMenu.addAction(QtGui.QAction("&Open DAG...", self, shortcut="Ctrl+O", triggered=self.openDialog))
 
-        recentMenu = fileMenu.addMenu('Recent')
-        if self.settings.value("recent_1") is not None:
-            recentMenu.addAction(QtGui.QAction(self.settings.value("recent_1"), self, triggered=lambda: self.open(self.settings.value("recent_1"))))
-        if self.settings.value("recent_2") is not None:
-            recentMenu.addAction(QtGui.QAction(self.settings.value("recent_2"), self, triggered=lambda: self.open(self.settings.value("recent_2"))))
-        if self.settings.value("recent_3") is not None:
-            recentMenu.addAction(QtGui.QAction(self.settings.value("recent_3"), self, triggered=lambda: self.open(self.settings.value("recent_3"))))
-        if self.settings.value("recent_4") is not None:
-            recentMenu.addAction(QtGui.QAction(self.settings.value("recent_4"), self, triggered=lambda: self.open(self.settings.value("recent_4"))))
-
+        self.recentMenu = fileMenu.addMenu('Recent Files')
+        self.rebuildRecentMenu()
 
         fileMenu.addAction(QtGui.QAction("&Save DAG", self, shortcut="Ctrl+S", triggered=lambda: self.save(self.workingFilename)))
-        fileMenu.addAction(QtGui.QAction("Save DAG &Version Up", self, shortcut="Ctrl+Space", triggered=self.saveVersionUp))
+        #fileMenu.addAction(QtGui.QAction("Save DAG &Version Up", self, shortcut="Ctrl+Space", triggered=self.saveVersionUp))
         fileMenu.addAction(QtGui.QAction("Save DAG &As...", self, shortcut="Ctrl+Shift+S", triggered=self.saveAs))
         fileMenu.addAction(QtGui.QAction("&Quit...", self, shortcut="Ctrl+Q", triggered=self.close))
         editMenu = self.menuBar().addMenu("&Edit")
@@ -767,8 +759,8 @@ class MainWindow(QtGui.QMainWindow):
         self.setWindowTitle("Depends (%s)" % self.workingFilename)
         self.variableWidget.rebuild(depends_variables.variableSubstitutions)
 
-        self.settings.setValue('recent_1', filename)
-
+        self.addRecentItem(filename)
+        self.rebuildRecentMenu()
         return True
 
 
@@ -798,6 +790,8 @@ class MainWindow(QtGui.QMainWindow):
         if not filename:
             return
 
+        currentFileName = self.workingFilename
+
         # Create a nested meta dict for saving node locations
         nodeMetaDict = self.graphicsScene.nodeMetaDict()
 
@@ -823,6 +817,11 @@ class MainWindow(QtGui.QMainWindow):
         
         # UI tidies
         self.undoStack.setClean()
+        if currentFileName != filename:
+            # file name has changed
+            self.addRecentItem(filename)
+            self.rebuildRecentMenu()
+
         self.workingFilename = filename
         self.setWindowTitle("Depends (%s)" % self.workingFilename)
         
@@ -982,6 +981,26 @@ class MainWindow(QtGui.QMainWindow):
             menuAction.category = tipe.category
             actionList.append(menuAction)
         return actionList
-    
 
+
+    def addRecentItem(self, item):
+        for x in reversed(range(1, 4)):
+            pref = 'recent_%d' % x
+            nextpref = 'recent_%d' % (x + 1)
+            if self.settings.value(pref) is not None:
+                self.settings.setValue(nextpref, self.settings.value(pref))
+
+        self.settings.setValue('recent_1', item)
+
+
+    def rebuildRecentMenu(self):
+        self.recentMenu.clear()
+        if self.settings.value("recent_1") is not None:
+            self.recentMenu.addAction(QtGui.QAction(self.settings.value("recent_1"), self, triggered=lambda: self.open(self.settings.value("recent_1"))))
+        if self.settings.value("recent_2") is not None:
+            self.recentMenu.addAction(QtGui.QAction(self.settings.value("recent_2"), self, triggered=lambda: self.open(self.settings.value("recent_2"))))
+        if self.settings.value("recent_3") is not None:
+            self.recentMenu.addAction(QtGui.QAction(self.settings.value("recent_3"), self, triggered=lambda: self.open(self.settings.value("recent_3"))))
+        if self.settings.value("recent_4") is not None:
+            self.recentMenu.addAction(QtGui.QAction(self.settings.value("recent_4"), self, triggered=lambda: self.open(self.settings.value("recent_4"))))
 
