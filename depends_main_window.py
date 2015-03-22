@@ -86,9 +86,26 @@ class MainWindow(QtGui.QMainWindow):
         redoAction = self.undoStack.createRedoAction(self, "&Redo")
         redoAction.setShortcuts(QtGui.QKeySequence.Redo)
 
+        # Application settings
+        self.settings = QtCore.QSettings('vcl', 'depends', self)
+        self.restoreSettings()
+
+
         # Create the menu bar
         fileMenu = self.menuBar().addMenu("&File")
         fileMenu.addAction(QtGui.QAction("&Open DAG...", self, shortcut="Ctrl+O", triggered=self.openDialog))
+
+        recentMenu = fileMenu.addMenu('Recent')
+        if self.settings.value("recent_1") is not None:
+            recentMenu.addAction(QtGui.QAction(self.settings.value("recent_1"), self, triggered=lambda: self.open(self.settings.value("recent_1"))))
+        if self.settings.value("recent_2") is not None:
+            recentMenu.addAction(QtGui.QAction(self.settings.value("recent_2"), self, triggered=lambda: self.open(self.settings.value("recent_2"))))
+        if self.settings.value("recent_3") is not None:
+            recentMenu.addAction(QtGui.QAction(self.settings.value("recent_3"), self, triggered=lambda: self.open(self.settings.value("recent_3"))))
+        if self.settings.value("recent_4") is not None:
+            recentMenu.addAction(QtGui.QAction(self.settings.value("recent_4"), self, triggered=lambda: self.open(self.settings.value("recent_4"))))
+
+
         fileMenu.addAction(QtGui.QAction("&Save DAG", self, shortcut="Ctrl+S", triggered=lambda: self.save(self.workingFilename)))
         fileMenu.addAction(QtGui.QAction("Save DAG &Version Up", self, shortcut="Ctrl+Space", triggered=self.saveVersionUp))
         fileMenu.addAction(QtGui.QAction("Save DAG &As...", self, shortcut="Ctrl+Shift+S", triggered=self.saveAs))
@@ -117,10 +134,6 @@ class MainWindow(QtGui.QMainWindow):
         windowMenu = self.menuBar().addMenu("&Window")
         windowMenu.addAction(self.propDock.toggleViewAction())
         windowMenu.addAction(self.variableDock.toggleViewAction())
-
-        # Application settings
-        self.settings = QtCore.QSettings('vcl', 'depends', self)
-        self.restoreSettings()
 
         # Setup the variables, load the plugins, and auto-generate the read dag nodes
         self.setupStartupVariables()
@@ -753,9 +766,12 @@ class MainWindow(QtGui.QMainWindow):
         self.workingFilename = filename
         self.setWindowTitle("Depends (%s)" % self.workingFilename)
         self.variableWidget.rebuild(depends_variables.variableSubstitutions)
+
+        self.settings.setValue('recent_1', filename)
+
         return True
 
-        
+
     def openDialog(self):
         """
         Pops open a file dialog, recovers a filename from it, and calls self.open()

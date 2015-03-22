@@ -4,7 +4,7 @@ from PySide import QtCore, QtGui
 import os
 
 
-def nonconsec_find(needle, haystack, anchored = False):
+def nonconsec_find(needle, haystack, anchored=False):
     """checks if each character of "needle" can be found in order (but not
     necessarily consecutivly) in haystack.
     For example, "mm" can be found in "matchmove", but not "move2d"
@@ -83,79 +83,10 @@ def nonconsec_find(needle, haystack, anchored = False):
     return True
 
 
-class NodeWeights(object):
-    def __init__(self, fname = None):
-        self.fname = fname
-        self._weights = {}
-
-    def load(self):
-        if self.fname is None:
-            return
-
-        def _load_internal():
-            import json
-            if not os.path.isfile(self.fname):
-                print "Weight file does not exist"
-                return
-            f = open(self.fname)
-            self._weights = json.load(f)
-            f.close()
-
-        # Catch any errors, print traceback and continue
-        try:
-            _load_internal()
-        except Exception:
-            print "Error loading node weights"
-            import traceback
-            traceback.print_exc()
-
-    def save(self):
-        if self.fname is None:
-            print "Not saving node weights, no file specified"
-            return
-
-        def _save_internal():
-            import json
-            ndir = os.path.dirname(self.fname)
-            if not os.path.isdir(ndir):
-                try:
-                    os.makedirs(ndir)
-                except OSError, e:
-                    if e.errno != 17: # errno 17 is "already exists"
-                        raise
-
-            f = open(self.fname, "w")
-            # TODO: Limit number of saved items to some sane number
-            json.dump(self._weights, fp = f)
-            f.close()
-
-        # Catch any errors, print traceback and continue
-        try:
-            _save_internal()
-        except Exception:
-            print "Error saving node weights"
-            import traceback
-            traceback.print_exc()
-
-    def get(self, k, default = 0):
-        if len(self._weights.values()) == 0:
-            maxval = 1.0
-        else:
-            maxval = max(self._weights.values())
-            maxval = max(1, maxval)
-            maxval = float(maxval)
-
-        return self._weights.get(k, default) / maxval
-
-    def increment(self, key):
-        self._weights.setdefault(key, 0)
-        self._weights[key] += 1
-
 class NodeModel(QtCore.QAbstractListModel):
-    def __init__(self, mlist, weights, num_items = 15, filtertext = ""):
+    def __init__(self, mlist, num_items=15, filtertext=""):
         super(NodeModel, self).__init__()
 
-        self.weights = weights
         self.num_items = num_items
 
         self._all = mlist
@@ -182,25 +113,23 @@ class NodeModel(QtCore.QAbstractListModel):
             uiname = "%s [%s]" % (menupath.rpartition("/")[2], menupath.rpartition("/")[0])
 
             if nonconsec_find(filtertext, uiname.lower(), anchored=True):
-                # Matches, get weighting and add to list of stuff
-                score = self.weights.get(n['menupath'])
-
                 scored.append({
-                        'text': uiname,
-                        'menupath': n['menupath'],
-                        'menuobj': n['menuobj'],
-                        'score': score})
+                    'text': uiname,
+                    'menupath': n['menupath'],
+                    'menuobj': n['menuobj'],
+                    'object': n['object'],
+                    'score': 1})
 
         # Store based on scores (descending), then alphabetically
-        s = sorted(scored, key = lambda k: (-k['score'], k['text']))
+        s = sorted(scored, key=lambda k: (-k['score'], k['text']))
 
         self._items = s
         self.modelReset.emit()
 
-    def rowCount(self, parent = QtCore.QModelIndex()):
+    def rowCount(self, parent=QtCore.QModelIndex()):
         return min(self.num_items, len(self._items))
 
-    def data(self, index, role = QtCore.Qt.DisplayRole):
+    def data(self, index, role=QtCore.Qt.DisplayRole):
         if role == QtCore.Qt.DisplayRole:
             # Return text to display
             raw = self._items[index.row()]['text']
@@ -226,7 +155,7 @@ class NodeModel(QtCore.QAbstractListModel):
             weight = self._items[index.row()]['score']
 
             hue = 0.4
-            sat = weight ** 2 # gamma saturation to make faster falloff
+            sat = weight ** 2  # gamma saturation to make faster falloff
 
             sat = min(1.0, sat)
 
@@ -254,6 +183,7 @@ class NodeModel(QtCore.QAbstractListModel):
         selected_data = self._items[selected.row()]
         return selected_data
 
+
 class TabyLineEdit(QtGui.QLineEdit):
     pressed_arrow = QtCore.Signal(str)
     cancelled = QtCore.Signal()
@@ -265,10 +195,6 @@ class TabyLineEdit(QtGui.QLineEdit):
         Also emit signals for the up/down arrows, and escape.
         """
         is_keypress = event.type() == QtCore.QEvent.KeyPress
-        if is_keypress:
-            print 'taby keyboard event!!'
-            print event.key()
-
 
         if is_keypress and event.key() == QtCore.Qt.Key_Tab:
             # Can't access tab key in keyPressedEvent
@@ -292,12 +218,13 @@ class TabyLineEdit(QtGui.QLineEdit):
             return super(TabyLineEdit, self).event(event)
 
 
-class TabTabTabWidget(QtGui.QWidget):
-    def __init__(self, on_create = None):
+class TabTabTabWidget(QtGui.QDialog):
+    def __init__(self, on_create=None, nodes={}):
         super(TabTabTabWidget, self).__init__()
 
         self.setMinimumSize(200, 300)
         self.setMaximumSize(200, 300)
+        self.setWindowFlags(QtCore.Qt.FramelessWindowHint)
 
         # Store callback
         self.cb_on_create = on_create
@@ -305,18 +232,9 @@ class TabTabTabWidget(QtGui.QWidget):
         # Input box
         self.input = TabyLineEdit()
         self.setFocusProxy(self.input)
-        # Node weighting
-        self.weights = NodeWeights(os.path.expanduser("~/.nuke/tabtabtab_weights.json"))
-        self.weights.load() # weights.save() called in close method
-
-        nodes = [
-            {'menuobj': 'one', 'menupath': '/something/one'},
-            {'menuobj': 'two', 'menupath': '/something/two'},
-            {'menuobj': 'three', 'menupath': '/something/three'},
-        ]
 
         # List of stuff, and associated model
-        self.things_model = NodeModel(nodes, weights = self.weights)
+        self.things_model = NodeModel(nodes)
         self.things = QtGui.QListView()
         self.things.setModel(self.things_model)
 
@@ -334,7 +252,7 @@ class TabTabTabWidget(QtGui.QWidget):
 
         # Reset selection on text change
         self.input.textChanged.connect(lambda: self.move_selection(where="first"))
-        self.move_selection(where = "first") # Set initial selection
+        self.move_selection(where="first")  # Set initial selection
 
         # Create node when enter/tab is pressed, or item is clicked
         self.input.returnPressed.connect(self.create)
@@ -355,10 +273,8 @@ class TabTabTabWidget(QtGui.QWidget):
         print 'event!'
         is_keypress = event.type() == QtCore.QEvent.KeyPress
 
-
         if is_keypress and event.key() == QtCore.Qt.Key_Escape:
             self.hide()
-
 
 
     def under_cursor(self):
@@ -371,21 +287,21 @@ class TabTabTabWidget(QtGui.QWidget):
         screen = QtGui.QDesktopWidget().screenGeometry(cursor)
 
         # Get window position so cursor is just over text input
-        xpos = cursor.x() - (self.width()/2)
+        xpos = cursor.x() - (self.width() / 2)
         ypos = cursor.y() - 13
 
         # Clamp window location to prevent it going offscreen
         xpos = clamp(xpos, screen.left(), screen.right() - self.width())
-        ypos = clamp(ypos, screen.top(), screen.bottom() - (self.height()-13))
+        ypos = clamp(ypos, screen.top(), screen.bottom() - (self.height() - 13))
 
-        print 'moving to:', xpos, ypos
         # Move window
-        self.move(cursor.x(), cursor.y())
+        self.move(xpos, ypos)
+
 
     def move_selection(self, where):
         if where not in ["first", "up", "down"]:
             raise ValueError("where should be either 'first', 'up', 'down', not %r" % (
-                    where))
+                where))
 
         first = where == "first"
         up = where == "up"
@@ -403,7 +319,7 @@ class TabTabTabWidget(QtGui.QWidget):
         elif down:
             new = cur.row() + 1
             count = self.things_model.rowCount()
-            if new > count-1:
+            if new > count - 1:
                 new = 0
 
         self.things.setCurrentIndex(self.things_model.index(new))
@@ -431,10 +347,6 @@ class TabTabTabWidget(QtGui.QWidget):
         create previously created node (instead of the most popular)
         """
 
-        # Load the weights everytime the panel is shown, to prevent
-        # overwritting weights from other Nuke instances
-        self.weights.load()
-
         # Select all text to allow overwriting
         self.input.selectAll()
         self.input.setFocus()
@@ -442,9 +354,8 @@ class TabTabTabWidget(QtGui.QWidget):
         super(TabTabTabWidget, self).show()
 
     def close(self):
-        """Save weights when closing
         """
-        self.weights.save()
+        """
         self.hide()
         super(TabTabTabWidget, self).close()
 
@@ -455,6 +366,10 @@ class TabTabTabWidget(QtGui.QWidget):
             return
 
         thing = self.things_model.getorig(selected)
+        print 'creating', thing['menuobj']
+        if self.cb_on_create:
+            nodeObj = thing['object']
+            self.cb_on_create(nodeObj)
 
         # Store the full UI name of the created node, so it is the
         # active node on the next [tab]. Prefix it with space,

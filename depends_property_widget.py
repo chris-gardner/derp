@@ -31,7 +31,7 @@ class GeneralEdit(QtGui.QWidget):
     # Signals
     valueChanged = QtCore.Signal(str, object, type)
 
-    def __init__(self, label="Unknown", value="", enabled=True, toolTip=None,
+    def __init__(self, label="Unknown", enabled=True, toolTip=None,
                  parent=None):
         """
         """
@@ -39,24 +39,25 @@ class GeneralEdit(QtGui.QWidget):
         self.label = label
         self.enabled = enabled
         self.toolTip = toolTip
-        self.value = value
         self.draw()
 
 
     def draw(self):
         # The upper layout holds the label, the value, and the "expand" button
         upperLayout = QtGui.QHBoxLayout()
-        upperLayout.setContentsMargins(0, 5, 0, 5)
+        upperLayout.setContentsMargins(0, 0, 0, 0)
         # upperLayout.setSpacing(0)
 
         self.label = QtGui.QLabel(self.label, self)
+        self.label.setMinimumWidth(150)
+        self.label.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
         if self.toolTip:
             self.label.setToolTip(self.toolTip)
+
         self.lineEdit = QtGui.QLineEdit(self)
-        self.lineEdit.setMinimumWidth(150)
-        self.lineEdit.setFixedHeight(25)
         self.lineEdit.setAlignment(QtCore.Qt.AlignLeft)
         self.lineEdit.setEnabled(self.enabled)
+        self.lineEdit.setSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
 
         upperLayout.addWidget(self.label)
         upperLayout.addWidget(self.lineEdit)
@@ -117,16 +118,18 @@ class FloatAttrEdit(StringAttrEdit):
 
     def draw(self):
         upperLayout = QtGui.QHBoxLayout()
-        upperLayout.setContentsMargins(0, 5, 0, 5)
+        upperLayout.setContentsMargins(0, 0, 0, 0)
         # upperLayout.setSpacing(0)
 
         self.label = QtGui.QLabel(self.label, self)
+        self.label.setMinimumWidth(150)
+        self.label.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
         if self.toolTip:
             self.label.setToolTip(self.toolTip)
+
         self.lineEdit = QtGui.QDoubleSpinBox(self)
-        self.lineEdit.setMinimumWidth(150)
-        self.lineEdit.setFixedHeight(25)
         self.lineEdit.setEnabled(self.enabled)
+        self.lineEdit.setSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
 
         upperLayout.addWidget(self.label)
         upperLayout.addWidget(self.lineEdit)
@@ -168,16 +171,18 @@ class BoolAttrEdit(StringAttrEdit):
 
     def draw(self):
         upperLayout = QtGui.QHBoxLayout()
-        upperLayout.setContentsMargins(0, 5, 0, 5)
+        upperLayout.setContentsMargins(0, 0, 0, 05)
         # upperLayout.setSpacing(0)
 
         self.label = QtGui.QLabel(self.label, self)
+        self.label.setMinimumWidth(150)
+        self.label.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
         if self.toolTip:
             self.label.setToolTip(self.toolTip)
+
         self.lineEdit = QtGui.QCheckBox(self)
-        self.lineEdit.setMinimumWidth(150)
-        self.lineEdit.setFixedHeight(25)
         self.lineEdit.setEnabled(self.enabled)
+        self.lineEdit.setSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
 
         upperLayout.addWidget(self.label)
         upperLayout.addWidget(self.lineEdit)
@@ -215,10 +220,15 @@ class PropWidget(QtGui.QWidget):
         self.mainLayout = QtGui.QVBoxLayout(self)
         self.mainLayout.setContentsMargins(0, 0, 0, 0)
         self.mainLayout.setSpacing(0)
+
         self.scrollArea = QtGui.QScrollArea()
+
         self.mainLayout.addWidget(self.scrollArea)
         self.foo = QtGui.QWidget(self)
         self.scrollAreaLayout = QtGui.QVBoxLayout(self.foo)
+        self.scrollAreaLayout.setContentsMargins(2, 2, 2, 2)
+        self.scrollAreaLayout.setSpacing(0)
+
         self.scrollAreaLayout.setAlignment(QtCore.Qt.AlignTop)
         self.foo.setLayout(self.scrollAreaLayout)
         self.scrollArea.setWidget(self.foo)
@@ -254,20 +264,22 @@ class PropWidget(QtGui.QWidget):
                                                                                               newValue, type)
 
         # Populate the UI with name and type
-        nameWidget = GeneralEdit("Name", self.dagNode.name, parent=self)
+        nameWidget = GeneralEdit("Name", parent=self)
         nameWidget.setValue(self.dagNode.name)
         nameWidget.valueChanged.connect(attrChangedLambda)
         self.scrollAreaLayout.addWidget(nameWidget)
 
-        typeWidget = GeneralEdit("Type", enabled=False, parent=self)
-        typeWidget.setValue(self.dagNode.typeStr())
-        self.scrollAreaLayout.addWidget(typeWidget)
+        attributeGroup = QtGui.QTabWidget()
+        attributeGroup.setSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
+        tabWidget = QtGui.QWidget()
+        attributeTab= attributeGroup.addTab(tabWidget, self.dagNode.typeStr())
+        attributeLayout = QtGui.QVBoxLayout(tabWidget)
+        attributeLayout.setContentsMargins(2, 2, 2, 2)
+        attributeLayout.setSpacing(2)
 
-
-        # Add the attributes (don't show any attributes that begin with input/output keywords)
+       # Add the attributes (don't show any attributes that begin with input/output keywords)
         if self.dagNode.attributes():
-            attributeGroup = QtGui.QGroupBox("Attributes")
-            attributeLayout = QtGui.QVBoxLayout()
+
             for attribute in self.dagNode.attributes():
 
                 if attribute.dataType in ['float', 'int']:
@@ -282,8 +294,13 @@ class PropWidget(QtGui.QWidget):
 
                 attributeLayout.addWidget(newThing)
                 newThing.valueChanged.connect(attrChangedLambda)
-            attributeGroup.setLayout(attributeLayout)
-            self.scrollAreaLayout.addWidget(attributeGroup)
+        else:
+            noAttrLabel = QtGui.QLabel()
+            noAttrLabel.setText('No attributes')
+            attributeLayout.addWidget(noAttrLabel)
+
+       # attributeTab.setLayout(attributeLayout)
+        self.scrollAreaLayout.addWidget(attributeGroup)
 
         self.resultField = GeneralEdit("Result",
                                        enabled=False,

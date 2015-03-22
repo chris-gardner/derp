@@ -1041,6 +1041,8 @@ class GraphicsViewWidget(QtGui.QGraphicsView):
         # check that the event hasn't been accepted by a child (eg, a DagNode)
         if not contextEvent.isAccepted():
             position = contextEvent.pos()
+            print 'cursor pos:', position
+            print 'mapped to scene', self.mapToScene(position)
             contextMenu = QtGui.QMenu()
             menuActions = self.parent().createCreateMenuActions()
             for action in menuActions:
@@ -1061,23 +1063,34 @@ class GraphicsViewWidget(QtGui.QGraphicsView):
             contextMenu.exec_(self.mapToGlobal(position))
 
 
+    def tabNodeCreate(self, node):
+        tabPos = self.tabWidget.pos()
+
+        xpos = tabPos.x() - 10
+        ypos = tabPos.y() - 40
+
+        finalPos = self.mapToScene(QtCore.QPoint(xpos, ypos))
+
+        self.parent().createNode(node, finalPos)
+
     def event(self, event):
         # have to trap the tab key in the general 'event' handler
         # because tab doesn't get passed to keyPressEvent
         if (event.type() == QtCore.QEvent.KeyPress) and (event.key() == QtCore.Qt.Key_Tab):
-            cursor = QtGui.QCursor()
-            # self.contextMenuEvent(self.mapFromGlobal(cursor.pos()))
             if not self.tabWidget:
-                t = tabMenu.TabTabTabWidget()
-                self.tabWidget = QtGui.QGraphicsProxyWidget()
-                self.tabWidget.setWidget(t)
-                self.scene().addItem(self.tabWidget)
-            position = self.centerCoordinates()
-            print 'cursor:', cursor.pos().x(), cursor.pos().y()
-            print self.mapToScene(cursor.pos())
-            self.tabWidget.setPos(self.mapToGlobal(cursor.pos()))
+
+                menuActions = self.parent().createCreateMenuActions()
+                nodes = []
+                for action in menuActions:
+                    nodes.append({'menuobj': action.text(), 'menupath': '%s/%s' % (action.category, action.text()), 'object': action.data()[0]})
+
+                print nodes
+                self.tabWidget = tabMenu.TabTabTabWidget(nodes=nodes, on_create=self.tabNodeCreate)
+
+
+            self.tabWidget.under_cursor()
             self.tabWidget.show()
-           # self.tabWidget.widget().under_cursor()
+            self.tabWidget.raise_()
 
             return True
 
