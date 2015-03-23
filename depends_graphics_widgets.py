@@ -1066,12 +1066,13 @@ class GraphicsViewWidget(QtGui.QGraphicsView):
     def tabNodeCreate(self, node):
         tabPos = self.tabWidget.pos()
 
-        xpos = tabPos.x() - 10
-        ypos = tabPos.y() - 40
+        xpos = tabPos.x() - (self.tabWidget.width() / 2)
+        ypos = tabPos.y() - 60
 
         finalPos = self.mapToScene(QtCore.QPoint(xpos, ypos))
 
         self.parent().createNode(node, finalPos)
+
 
     def event(self, event):
         # have to trap the tab key in the general 'event' handler
