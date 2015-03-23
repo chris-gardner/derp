@@ -9,6 +9,7 @@ import sys
 import json
 import tempfile
 import itertools
+from functools import partial
 
 from PySide import QtCore, QtGui
 
@@ -988,19 +989,21 @@ class MainWindow(QtGui.QMainWindow):
             pref = 'recent_%d' % x
             nextpref = 'recent_%d' % (x + 1)
             if self.settings.value(pref) is not None:
-                self.settings.setValue(nextpref, self.settings.value(pref))
+                if self.settings.value(pref) != self.settings.value(nextpref):
+                    self.settings.setValue(nextpref, self.settings.value(pref))
 
         self.settings.setValue('recent_1', item)
 
 
     def rebuildRecentMenu(self):
         self.recentMenu.clear()
-        if self.settings.value("recent_1") is not None:
-            self.recentMenu.addAction(QtGui.QAction(self.settings.value("recent_1"), self, triggered=lambda: self.open(self.settings.value("recent_1"))))
-        if self.settings.value("recent_2") is not None:
-            self.recentMenu.addAction(QtGui.QAction(self.settings.value("recent_2"), self, triggered=lambda: self.open(self.settings.value("recent_2"))))
-        if self.settings.value("recent_3") is not None:
-            self.recentMenu.addAction(QtGui.QAction(self.settings.value("recent_3"), self, triggered=lambda: self.open(self.settings.value("recent_3"))))
-        if self.settings.value("recent_4") is not None:
-            self.recentMenu.addAction(QtGui.QAction(self.settings.value("recent_4"), self, triggered=lambda: self.open(self.settings.value("recent_4"))))
+
+        for x in range(1, 4):
+            pref = 'recent_%d' % x
+            if self.settings.value(pref) is not None:
+                self.recentMenu.addAction(QtGui.QAction(
+                    self.settings.value(pref), self,
+                    triggered=partial(self.open, self.settings.value(pref)))
+                )
+
 
